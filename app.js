@@ -20,14 +20,15 @@
 
 // Google Apps Script Web App 배포 URL (…/exec). 아직 없음 → 비워 둠.
 // ⚠ 연결 시 fetch에 커스텀 헤더를 넣지 마세요. (Apps Script는 CORS preflight를 처리하지 못함)
-const API_URL = "https://script.google.com/macros/s/AKfycbyCyRxBJJoajlBKckb6lpKMYbKpEvToi13ZkmLVemlNJzLG4Iop_IHuOygPlRTu81c1UQ/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbzHYsxWdo4WLQYrUfvWaT2hEqgoHxhz-3z-a4VPxT9TDqcXQrqhpiKlxJt8XEs3D_Etsw/exec";
 
 // true: 고정 demoData로 디자인 확인 / false: API_URL에서 실제 데이터 사용
 const DEMO_MODE = false;
 
 const REFRESH_INTERVAL_MS = 10000; // 자동 갱신 간격 (15초)
 const FETCH_TIMEOUT_MS = 10000;    // 응답이 이보다 늦으면 실패로 처리
-const FEED_MAX = 7;                // LIVE FEED에 표시할 최대 줄 수 (latest 포함)
+const FEED_MAX = 10;               // LIVE FEED에 표시할 최대 줄 수 (latest 포함, 최신순)
+const FEED_MOBILE_COLLAPSED = 5;   // 모바일 LIVE FEED 기본 표시 개수 (MORE로 최대 FEED_MAX)
 const MINI_CARD_COUNT = 3;         // PC JUST PASSED 옆 작은 카드 수
 const NEW_BADGE_MINUTES = 10;      // 최근 PASS가 이 시간(분) 이내면 NEW 배지 표시
 const TIME_ZONE = "Asia/Seoul";
@@ -197,15 +198,19 @@ function normalize(raw) {
   };
 }
 
-/** [LEADERS] API leaders → 화면용 (허용된 필드만: 단어장명 / 단원 수 / 마스킹 이름) */
+/** [LEADERS] API leaders → 화면용 (허용된 필드만: 단어장명 / 순위 / 단원 수 / 마스킹 이름)
+    ranks(TOP 3)는 API가 보낸 rank를 그대로 사용. ranks가 없으면 1위(unitCount/students)만 표시 */
 function normalizeLeaders(raw) {
+  const names = (v) => (Array.isArray(v) ? v : []).map(maskName).filter(Boolean);
   const clean = (list) => (Array.isArray(list) ? list : [])
-    .map((l) => ({
-      course: cleanText(l && l.course),
-      unitCount: toCount(l && l.unitCount),
-      students: (Array.isArray(l && l.students) ? l.students : []).map(maskName).filter(Boolean),
-    }))
-    .filter((l) => l.course && l.unitCount && l.students.length);
+    .map((l) => {
+      const ranks = (Array.isArray(l && l.ranks) ? l.ranks : [{ rank: 1, unitCount: l && l.unitCount, students: l && l.students }])
+        .map((r) => ({ rank: toCount(r && r.rank), unitCount: toCount(r && r.unitCount), students: names(r && r.students) }))
+        .filter((r) => r.rank >= 1 && r.rank <= 3 && r.unitCount && r.students.length)
+        .sort((a, b) => a.rank - b.rank);
+      return { course: cleanText(l && l.course), ranks };
+    })
+    .filter((l) => l.course && l.ranks.length);
   const r = raw && typeof raw === "object" ? raw : {};
   return { today: clean(r.today), week: clean(r.week) };
 }
@@ -419,6 +424,16 @@ function renderLists(data) {
   syncList($("#feedList"), feedItems.slice(0, FEED_MAX), buildFeedRow, { animateNew });
 
   $("#feedEmpty").hidden = feedItems.length > 0;
+  $("#feedMore").hidden = Math.min(feedItems.length, FEED_MAX) <= FEED_MOBILE_COLLAPSED;
+}
+
+/** [FEED] 모바일 MORE / LESS — 펼친 상태는 목록 class로 유지되어 10초 갱신 후에도 그대로 */
+function setFeedExpanded(expanded) {
+  $("#feedList").classList.toggle("is-expanded", expanded);
+  const btn = $("#feedMore");
+  btn.setAttribute("aria-expanded", expanded ? "true" : "false");
+  btn.querySelector(".fm-label").textContent = expanded ? "LESS · 접기" : `MORE · 최근 PASS ${FEED_MAX}개 보기`;
+  btn.querySelector(".fm-sign").textContent = expanded ? "−" : "+";
 }
 
 /* ---------- 하단 TICKER (내용이 바뀐 경우에만 다시 만듦) ---------- */
@@ -499,26 +514,32 @@ function renderLeaders(data) {
   const existing = new Map();
   for (const child of container.children) existing.set(child.dataset.key, child);
 
+  const unitWord = (n) => (n === 1 ? "UNIT" : "UNITS");
   list.forEach((l, index) => {
     const k = l.course.toLowerCase();
     let node = existing.get(k);
-    const names = l.students.join(" · ");
     if (!node) {
       node = document.createElement("li");
       node.className = "leader";
       node.dataset.key = k;
-      node.innerHTML =
-        '<p class="ld-course"></p>' +
-        '<p class="ld-names"><svg aria-hidden="true"><use href="#i-crown"></use></svg><span></span></p>' +
-        '<p class="ld-count"><strong></strong><small></small></p>';
+      node.innerHTML = '<p class="ld-course"></p><ol class="ld-ranks"></ol>';
     }
     const prev = node.dataset.sig;
-    const sig = names + "|" + l.unitCount;
+    const sig = JSON.stringify(l.ranks);
     node.querySelector(".ld-course").textContent = l.course;
-    node.querySelector(".ld-names span").textContent = names;
-    node.querySelector(".ld-count strong").textContent = l.unitCount.toLocaleString("ko-KR");
-    node.querySelector(".ld-count small").textContent = l.unitCount === 1 ? "UNIT" : "UNITS";
-    node.setAttribute("aria-label", `${l.course} 리더 ${names}, ${l.unitCount} ${l.unitCount === 1 ? "UNIT" : "UNITS"}`);
+    if (prev !== sig) {
+      node.querySelector(".ld-ranks").replaceChildren(...l.ranks.map((r) => {
+        const row = document.createElement("li");
+        row.className = `ld-rank r${r.rank}`;
+        row.setAttribute("aria-label", `${r.rank}위 ${r.students.join(", ")}, ${r.unitCount} ${unitWord(r.unitCount)}`);
+        row.innerHTML = '<span class="ld-medal" aria-hidden="true"></span><span class="ld-names"></span><span class="ld-count" aria-hidden="true"><strong></strong><small></small></span>';
+        row.querySelector(".ld-medal").textContent = r.rank;
+        row.querySelector(".ld-names").textContent = r.students.join(" · ");
+        row.querySelector(".ld-count strong").textContent = r.unitCount.toLocaleString("ko-KR");
+        row.querySelector(".ld-count small").textContent = unitWord(r.unitCount);
+        return row;
+      }));
+    }
     node.dataset.sig = sig;
     if (container.children[index] !== node) container.insertBefore(node, container.children[index] || null);
     // 같은 탭에서 리더가 바뀌거나 단원 수가 늘면 짧은 gold glow (첫 표시/탭 전환 시에는 없음)
@@ -546,6 +567,9 @@ function setLeaderPeriod(period) {
 function initLeaders() {
   document.querySelectorAll(".leader-tab").forEach((tab) => {
     tab.addEventListener("click", () => setLeaderPeriod(tab.dataset.period));
+  });
+  $("#feedMore").addEventListener("click", () => {
+    setFeedExpanded(!$("#feedList").classList.contains("is-expanded"));
   });
   $("#scrollCue").addEventListener("click", () => {
     $("#leaders").scrollIntoView({ behavior: reduceMotion.matches ? "auto" : "smooth", block: "start" });

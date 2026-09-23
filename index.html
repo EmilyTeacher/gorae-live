@@ -176,6 +176,10 @@
         </header>
         <ol class="feed-list" id="feedList"></ol>
         <p class="feed-empty" id="feedEmpty" hidden>아직 오늘의 PASS 기록이 없습니다.</p>
+        <!-- 모바일: 기본 5개, 누르면 최대 10개 -->
+        <button type="button" class="feed-more" id="feedMore" aria-controls="feedList" aria-expanded="false" hidden>
+          <span class="fm-label">MORE · 최근 PASS 10개 보기</span><span class="fm-sign" aria-hidden="true">+</span>
+        </button>
       </section>
     </main>
 
