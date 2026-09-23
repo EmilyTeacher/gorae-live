@@ -1067,132 +1067,216 @@ svg, img { display: block; }
 .head-icon.trophy { color: rgb(var(--gold)); filter: drop-shadow(0 0 6px rgb(var(--gold) / 0.6)); }
 .leaders-head .head-sub { flex-basis: 100%; padding-left: 34px; }
 
+/* 기간 탭: 게임 모드 선택 버튼 (TODAY = cyan / WEEKLY = violet) */
 .leader-tabs {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
-  margin: 0 2px 12px;
+  margin: 0 2px 14px;
 }
 .leader-tab {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1px;
-  padding: 9px 6px 8px;
-  border: 1.5px solid var(--line-2);
+  gap: 2px;
+  padding: 11px 6px 9px;
+  border: 1.5px solid rgba(130, 165, 255, 0.22);
   border-radius: 12px;
-  background: rgba(8, 16, 38, 0.55);
-  color: var(--ink-3);
+  background: linear-gradient(180deg, rgba(10, 20, 46, 0.85), rgba(5, 11, 28, 0.9));
+  color: #7f95c2;
   font: inherit;
   cursor: pointer;
   transition: border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
 }
-.leader-tab strong { font-family: var(--font-display); font-weight: 600; font-size: 1.05rem; letter-spacing: 0.08em; }
+.leader-tab strong { font-family: var(--font-display); font-weight: 600; font-size: 1.05rem; letter-spacing: 0.08em; line-height: 1.15; }
 .leader-tab span { font-size: 0.72rem; }
 .leader-tab:focus-visible { outline: 2px solid rgb(var(--cyan) / 0.8); outline-offset: 2px; }
 .leader-tab[aria-selected="true"] {
-  border-color: rgb(var(--blue) / 0.95);
-  background: linear-gradient(165deg, rgba(40, 90, 200, 0.35), rgba(10, 24, 60, 0.85));
+  --tab: 80 200 255;
+  border-color: rgb(var(--tab) / 0.95);
+  background: linear-gradient(180deg, rgb(var(--tab) / 0.22), rgba(8, 20, 52, 0.9) 75%);
   color: #fff;
-  box-shadow: 0 0 14px rgb(var(--blue) / 0.35), inset 0 0 12px rgb(var(--blue) / 0.18);
+  box-shadow: 0 0 16px rgb(var(--tab) / 0.35), inset 0 0 14px rgb(var(--tab) / 0.18);
+  text-shadow: 0 0 10px rgb(var(--tab) / 0.6);
 }
-.leader-tab[aria-selected="true"] span { color: #9fd0ff; }
-.leader-tab[data-period="week"][aria-selected="true"] {
-  border-color: rgb(var(--violet) / 0.9);
-  background: linear-gradient(165deg, rgba(110, 80, 200, 0.3), rgba(16, 14, 50, 0.85));
-  box-shadow: 0 0 14px rgb(var(--violet) / 0.3), inset 0 0 12px rgb(var(--violet) / 0.15);
+.leader-tab[aria-selected="true"] span { color: #a8e6ff; text-shadow: none; }
+.leader-tab[data-period="week"][aria-selected="true"] { --tab: 168 128 255; }
+.leader-tab[data-period="week"][aria-selected="true"] span { color: #d6c6ff; }
+/* 활성 탭: 아주 약한 glow pulse (opacity만) */
+.leader-tab[aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  inset: -1.5px;
+  border-radius: inherit;
+  box-shadow: 0 0 22px rgb(var(--tab) / 0.45);
+  opacity: 0.35;
+  animation: tab-pulse 3.2s ease-in-out infinite alternate;
+  pointer-events: none;
 }
-.leader-tab[data-period="week"][aria-selected="true"] span { color: #cdb8ff; }
+@keyframes tab-pulse { from { opacity: 0.25; } to { opacity: 0.8; } }
 
-.leader-list { display: grid; gap: 8px; }
+/* 단어장 카드 */
+.leader-list { display: grid; gap: 10px; }
 .leader {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 11px 12px 10px;
-  border: 1.5px solid rgb(var(--blue) / 0.55);
-  border-radius: 14px;
-  background: linear-gradient(165deg, rgba(20, 42, 94, 0.55), rgba(8, 16, 40, 0.88));
-  box-shadow: 0 0 12px rgb(var(--blue) / 0.16), inset 0 0 16px rgb(var(--blue) / 0.08);
+  gap: 4px;
+  padding: 12px 12px 10px;
+  border: 1.5px solid rgb(var(--blue) / 0.6);
+  border-radius: 16px;
+  background:
+    radial-gradient(120% 60% at 0% 0%, rgb(var(--blue) / 0.12), transparent 60%),
+    linear-gradient(165deg, rgba(16, 34, 80, 0.7), rgba(6, 13, 34, 0.92));
+  box-shadow: 0 0 14px rgb(var(--blue) / 0.18), inset 0 0 18px rgb(var(--blue) / 0.08);
 }
+/* 단어장 제목 줄: 왼쪽 네온 바 + 오른쪽 기간 태그, 아래 구분선 */
 .ld-course {
-  padding-bottom: 6px;
-  border-bottom: 1px solid var(--line);
-  font-size: 0.92rem;
-  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 4px;
+  padding: 2px 2px 9px;
+  border-bottom: 1px solid rgba(130, 165, 255, 0.2);
+  font-size: 1.02rem;
+  font-weight: 800;
   line-height: 1.3;
-  color: #8fc3ff;
+  color: #eef3ff;
   word-break: keep-all;
   overflow-wrap: anywhere;
 }
-/* 순위 줄: 메달 | 이름(줄바꿈) | 단원 수 */
-.ld-ranks { display: grid; gap: 5px; }
-.ld-rank {
-  --medal: 246 199 88;
-  display: grid;
-  grid-template-columns: 22px minmax(0, 1fr) auto;
-  align-items: center;
-  column-gap: 9px;
+.ld-course::before {
+  content: "";
+  flex: none;
+  width: 4px;
+  height: 1.15em;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #7fe3ff, rgb(var(--blue)));
+  box-shadow: 0 0 8px rgba(80, 200, 255, 0.7);
 }
-.ld-rank.r2 { --medal: 190 222 255; } /* silver / ice blue */
-.ld-rank.r3 { --medal: 236 150 110; } /* bronze / warm coral */
+.ld-course::after {
+  content: "TODAY";
+  flex: none;
+  margin-left: auto;
+  padding-left: 6px;
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 0.66rem;
+  letter-spacing: 0.18em;
+  color: #7fe3ff;
+}
+.leaders:has(.leader-tab[data-period="week"][aria-selected="true"]) .ld-course::after { content: "WEEKLY"; color: #c2a9ff; }
+
+/* 순위 줄: 배지 | 이름(줄바꿈) | 단원 수 */
+.ld-ranks { display: grid; gap: 0; }
+.ld-rank {
+  --medal: 246 199 88;      /* gold */
+  --medal-deep: 196 138 30;
+  position: relative;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 11px;
+  padding: 7px 8px;
+  border-top: 1px solid rgba(130, 165, 255, 0.12);
+}
+.ld-rank.r2 { --medal: 190 222 255; --medal-deep: 110 150 205; } /* silver / ice blue */
+.ld-rank.r3 { --medal: 240 150 112; --medal-deep: 176 88 58; }   /* bronze / warm coral */
+/* 1위: 한 단계 큰 줄 + 아주 약한 gold 하이라이트 */
+.ld-rank.r1 {
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  padding: 10px 10px;
+  border: 1px solid rgb(var(--gold) / 0.55);
+  border-radius: 12px;
+  background: linear-gradient(90deg, rgb(var(--gold) / 0.16), rgb(var(--gold) / 0.05) 55%, rgba(0, 0, 0, 0));
+  box-shadow: 0 0 14px rgb(var(--gold) / 0.14), inset 0 0 12px rgb(var(--gold) / 0.06);
+}
+.ld-rank.r1 + .ld-rank { border-top: 0; margin-top: 2px; }
+
+/* 순위 배지: 작은 방패 + 왕관 (메달 색만 사용) */
 .ld-medal {
+  position: relative;
+  isolation: isolate;
   display: grid;
   place-items: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  border: 1.5px solid rgb(var(--medal));
-  background: radial-gradient(circle at 35% 30%, rgb(var(--medal) / 0.45), rgb(var(--medal) / 0.12));
-  box-shadow: 0 0 8px rgb(var(--medal) / 0.5);
+  width: 30px;
+  height: 34px;
+  padding-top: 7px;
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 0.78rem;
+  font-size: 0.9rem;
   line-height: 1;
-  color: #fff;
+  color: #0b1530;
+  filter: drop-shadow(0 0 5px rgb(var(--medal) / 0.55));
 }
+.ld-medal::after { /* 방패 */
+  content: "";
+  position: absolute;
+  inset: 7px 1px 0;
+  z-index: -1;
+  background: linear-gradient(180deg, rgb(var(--medal)), rgb(var(--medal-deep)));
+  clip-path: polygon(50% 0, 100% 16%, 100% 60%, 50% 100%, 0 60%, 0 16%);
+}
+.ld-medal::before { /* 왕관 */
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 16px;
+  height: 8px;
+  transform: translateX(-50%);
+  background: rgb(var(--medal));
+  clip-path: polygon(0 100%, 0 20%, 25% 60%, 50% 0, 75% 60%, 100% 20%, 100% 100%);
+}
+.ld-rank.r1 .ld-medal { width: 36px; height: 41px; padding-top: 9px; font-size: 1.08rem; filter: drop-shadow(0 0 7px rgb(var(--medal) / 0.7)); }
+.ld-rank.r1 .ld-medal::after { inset: 9px 1px 0; }
+.ld-rank.r1 .ld-medal::before { width: 20px; height: 10px; }
+
 .ld-names {
   min-width: 0;
   font-size: 0.98rem;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.35;
-  color: #fff;
+  color: #dfe7fb;
   overflow-wrap: anywhere;
 }
-.ld-rank:not(.r1) .ld-names { font-weight: 600; color: #dfe7fb; }
+.ld-rank.r1 .ld-names { font-size: 1.12rem; font-weight: 800; color: #fff; }
 /* 안전장치: 캐시된 이전 app.js가 만든 왕관 아이콘이 커지지 않도록 */
 .leader svg { width: 18px; height: 18px; flex: none; color: rgb(var(--gold)); }
-.ld-count { display: flex; align-items: baseline; gap: 3px; white-space: nowrap; }
+.ld-count { display: flex; align-items: baseline; gap: 4px; white-space: nowrap; }
 .ld-count strong {
   font-weight: 800;
-  font-size: 1.2rem;
+  font-size: 1.3rem;
   line-height: 1;
   font-variant-numeric: tabular-nums;
   color: rgb(var(--medal));
-  text-shadow: 0 0 8px rgb(var(--medal) / 0.35);
+  text-shadow: 0 0 10px rgb(var(--medal) / 0.4);
 }
-.ld-rank.r1 .ld-count strong { font-size: 1.4rem; }
+.ld-rank.r1 .ld-count strong { font-size: 1.75rem; }
 .ld-count small {
-  font-size: 0.6rem;
+  font-family: var(--font-display);
+  font-size: 0.66rem;
   font-weight: 600;
   letter-spacing: 0.1em;
-  color: #7fe3ff;
+  color: rgb(var(--medal) / 0.85);
 }
 /* 새 리더 / 단원 수 증가 시 짧은 gold glow (1회) */
 .leader.ld-up { animation: ld-glow 1.6s ease-out both; }
 @keyframes ld-glow {
-  0% { box-shadow: 0 0 0 rgb(var(--gold) / 0); border-color: rgb(var(--blue) / 0.55); }
+  0% { box-shadow: 0 0 0 rgb(var(--gold) / 0); border-color: rgb(var(--blue) / 0.6); }
   25% { box-shadow: 0 0 22px rgb(var(--gold) / 0.55); border-color: rgb(var(--gold) / 0.95); }
-  100% { box-shadow: 0 0 12px rgb(var(--blue) / 0.16); border-color: rgb(var(--blue) / 0.55); }
+  100% { box-shadow: 0 0 14px rgb(var(--blue) / 0.18); border-color: rgb(var(--blue) / 0.6); }
 }
 .leader-empty { padding: 18px 0 10px; text-align: center; color: var(--ink-3); }
 .leader-empty[hidden] { display: none; }
 
 @media (min-width: 600px) {
-  .ld-course { font-size: 1rem; }
-  .ld-names { font-size: 1.05rem; }
-  .ld-count strong { font-size: 1.3rem; }
-  .ld-rank.r1 .ld-count strong { font-size: 1.55rem; }
+  .leader-tab strong { font-size: 1.2rem; }
+  .ld-course { font-size: 1.1rem; }
+  .ld-names { font-size: 1.04rem; }
+  .ld-rank.r1 .ld-names { font-size: 1.2rem; }
+  .ld-count strong { font-size: 1.4rem; }
+  .ld-rank.r1 .ld-count strong { font-size: 1.9rem; }
 }
 
 /* ---------- 모바일 LIVE FEED MORE / LESS ---------- */
@@ -1232,7 +1316,7 @@ svg, img { display: block; }
     scrollbar-color: rgb(var(--blue) / 0.45) transparent;
   }
   .leaders-head .head-sub { flex-basis: auto; padding-left: 0; }
-  .leader-tabs { grid-template-columns: repeat(2, minmax(0, 13rem)); margin-bottom: 0.9rem; }
+  .leader-tabs { grid-template-columns: repeat(2, minmax(0, 16rem)); margin-bottom: 1rem; }
   .leader-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.7rem 0.9rem; }
 }
 
