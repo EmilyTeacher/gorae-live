@@ -20,7 +20,7 @@
 
 // Google Apps Script Web App 배포 URL (…/exec). 아직 없음 → 비워 둠.
 // ⚠ 연결 시 fetch에 커스텀 헤더를 넣지 마세요. (Apps Script는 CORS preflight를 처리하지 못함)
-const API_URL = "https://script.google.com/macros/s/AKfycbxKtYem61THblOzbBywp3pMmRaTU5DIjE7LY2Q9VW8jS4Pmais-HkEjAjdn8iKC_eRwRg/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbyCyRxBJJoajlBKckb6lpKMYbKpEvToi13ZkmLVemlNJzLG4Iop_IHuOygPlRTu81c1UQ/exec";
 
 // true: 고정 demoData로 디자인 확인 / false: API_URL에서 실제 데이터 사용
 const DEMO_MODE = false;
@@ -193,7 +193,21 @@ function normalize(raw) {
     },
     latestPass: latest,
     recentPasses: recent,
+    leaders: normalizeLeaders(raw.leaders),
   };
+}
+
+/** [LEADERS] API leaders → 화면용 (허용된 필드만: 단어장명 / 단원 수 / 마스킹 이름) */
+function normalizeLeaders(raw) {
+  const clean = (list) => (Array.isArray(list) ? list : [])
+    .map((l) => ({
+      course: cleanText(l && l.course),
+      unitCount: toCount(l && l.unitCount),
+      students: (Array.isArray(l && l.students) ? l.students : []).map(maskName).filter(Boolean),
+    }))
+    .filter((l) => l.course && l.unitCount && l.students.length);
+  const r = raw && typeof raw === "object" ? raw : {};
+  return { today: clean(r.today), week: clean(r.week) };
 }
 
 /* =====================================================================
@@ -468,6 +482,76 @@ function renderTicker(data) {
   });
 }
 
+/* ---------- [LEADERS] GORAE LEARNING LEADERS ----------
+   기존 10초 refresh 응답(data.leaders)만 사용. 추가 API 호출 없음. */
+const leaderView = { period: "today", renderedKey: "" };
+
+function renderLeaders(data) {
+  if (!data) return;
+  const period = leaderView.period;
+  const list = (data.leaders && data.leaders[period]) || [];
+  const key = period + JSON.stringify(list);
+  if (key === leaderView.renderedKey) return; // 변화 없음 → DOM 그대로
+  const samePeriod = leaderView.renderedKey.startsWith(period);
+  leaderView.renderedKey = key;
+
+  const container = $("#leaderList");
+  const existing = new Map();
+  for (const child of container.children) existing.set(child.dataset.key, child);
+
+  list.forEach((l, index) => {
+    const k = l.course.toLowerCase();
+    let node = existing.get(k);
+    const names = l.students.join(" · ");
+    if (!node) {
+      node = document.createElement("li");
+      node.className = "leader";
+      node.dataset.key = k;
+      node.innerHTML =
+        '<p class="ld-course"></p>' +
+        '<p class="ld-names"><svg aria-hidden="true"><use href="#i-crown"></use></svg><span></span></p>' +
+        '<p class="ld-count"><strong></strong><small></small></p>';
+    }
+    const prev = node.dataset.sig;
+    const sig = names + "|" + l.unitCount;
+    node.querySelector(".ld-course").textContent = l.course;
+    node.querySelector(".ld-names span").textContent = names;
+    node.querySelector(".ld-count strong").textContent = l.unitCount.toLocaleString("ko-KR");
+    node.querySelector(".ld-count small").textContent = l.unitCount === 1 ? "UNIT" : "UNITS";
+    node.setAttribute("aria-label", `${l.course} 리더 ${names}, ${l.unitCount} ${l.unitCount === 1 ? "UNIT" : "UNITS"}`);
+    node.dataset.sig = sig;
+    if (container.children[index] !== node) container.insertBefore(node, container.children[index] || null);
+    // 같은 탭에서 리더가 바뀌거나 단원 수가 늘면 짧은 gold glow (첫 표시/탭 전환 시에는 없음)
+    if (samePeriod && prev && prev !== sig) playOnce(node, ["ld-up"], 1700);
+    existing.delete(k);
+  });
+  for (const node of existing.values()) node.remove();
+
+  $("#leaderEmpty").hidden = list.length > 0;
+}
+
+function setLeaderPeriod(period) {
+  if (period !== "today" && period !== "week") return;
+  leaderView.period = period;
+  document.querySelectorAll(".leader-tab").forEach((tab) => {
+    const on = tab.dataset.period === period;
+    tab.setAttribute("aria-selected", on ? "true" : "false");
+    if (on) $("#leaderList").setAttribute("aria-labelledby", tab.id);
+  });
+  $("#leaderList").replaceChildren();
+  leaderView.renderedKey = "";
+  renderLeaders(state.data);
+}
+
+function initLeaders() {
+  document.querySelectorAll(".leader-tab").forEach((tab) => {
+    tab.addEventListener("click", () => setLeaderPeriod(tab.dataset.period));
+  });
+  $("#scrollCue").addEventListener("click", () => {
+    $("#leaders").scrollIntoView({ behavior: reduceMotion.matches ? "auto" : "smooth", block: "start" });
+  });
+}
+
 /* ---------- 연결 상태 표시 ---------- */
 function setStatus(kind) {
   const el = $("#status");
@@ -498,6 +582,7 @@ function applyData(data) {
   renderFeatured(data.latestPass, data.generatedAt);
   renderLists(data);
   renderTicker(data);
+  renderLeaders(data);
   state.firstRender = false;
 }
 
@@ -579,6 +664,7 @@ function init() {
   }
   tickClock();
   setInterval(tickClock, 1000);
+  initLeaders();
   if (DEMO_MODE) {
     // DEMO: 고정 데이터 1회 표시 (데이터가 바뀌지 않으므로 반복 호출 없음)
     refresh();

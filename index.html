@@ -28,6 +28,8 @@
     <symbol id="i-book" viewBox="0 0 24 24"><path fill="currentColor" d="M2 5.2c0-.6.4-1 1-1.1 2.9-.4 5.6.2 8 1.7V20c-2.4-1.4-5-1.9-8-1.5-.5.1-1-.3-1-.9V5.2Zm20 0c0-.6-.4-1-1-1.1-2.9-.4-5.6.2-8 1.7V20c2.4-1.4 5-1.9 8-1.5.5.1 1-.3 1-.9V5.2Z"/></symbol>
     <symbol id="i-clock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></g></symbol>
     <symbol id="i-tail" viewBox="0 0 24 24"><path fill="currentColor" d="M12 21c-.6-4.3-1.5-7-3.3-8.8C6.9 10.5 4.4 9.6 1.5 9.4 2.6 6 5.3 3.8 8.4 4c2 .1 3.2 1.4 3.6 3.6.4-2.2 1.6-3.5 3.6-3.6 3.1-.2 5.8 2 6.9 5.4-2.9.2-5.4 1.1-7.2 2.8C13.5 14 12.6 16.7 12 21Z"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" d="M5 8.5l7 7 7-7"/></symbol>
+    <symbol id="i-trophy" viewBox="0 0 24 24"><path fill="currentColor" d="M7 3h10v2h3.5v2.5A4.5 4.5 0 0 1 16.2 12a5 5 0 0 1-3.2 2.8V17h3v2H8v-2h3v-2.2A5 5 0 0 1 7.8 12 4.5 4.5 0 0 1 3.5 7.5V5H7V3Zm0 4H5.5v.5A2.5 2.5 0 0 0 7.2 9.9 5 5 0 0 1 7 9V7Zm10 0v2c0 .3 0 .6-.1.9a2.5 2.5 0 0 0 1.6-2.4V7H17ZM7 20h10v1.5H7V20Z"/></symbol>
     <symbol id="i-heart" viewBox="0 0 24 24"><path fill="currentColor" d="M12 21s-7.5-4.6-9.6-9.2C.9 8.5 2.8 4.5 6.6 4.5c2.2 0 3.6 1.2 5.4 3.3 1.8-2.1 3.2-3.3 5.4-3.3 3.8 0 5.7 4 4.2 7.3C19.5 16.4 12 21 12 21Z"/></symbol>
     <symbol id="i-retry" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M20 12a8 8 0 1 1-2.6-5.9M20 4v5h-5"/></symbol>
     <symbol id="i-spark" viewBox="0 0 24 24"><path fill="currentColor" d="M12 1.5c.5 5.4 3.1 8 8.5 8.5v.1c-5.4.5-8 3.1-8.5 8.5h-.1c-.5-5.4-3.1-8-8.5-8.5V10c5.4-.5 8-3.1 8.5-8.5h.1Z"/></symbol>
@@ -176,6 +178,38 @@
         <p class="feed-empty" id="feedEmpty" hidden>아직 오늘의 PASS 기록이 없습니다.</p>
       </section>
     </main>
+
+    <!-- ===================== SCROLL CUE (모바일) ===================== -->
+    <button type="button" class="scroll-cue" id="scrollCue" aria-controls="leaders">
+      <span class="cue-chevrons" aria-hidden="true">
+        <svg><use href="#i-chev" /></svg>
+        <svg><use href="#i-chev" /></svg>
+        <svg><use href="#i-chev" /></svg>
+      </span>
+      <span class="cue-en">SCROLL DOWN</span>
+      <span class="cue-ko">오늘의 리더를 확인하세요!</span>
+    </button>
+
+    <!-- ===================== GORAE LEARNING LEADERS ===================== -->
+    <section class="panel leaders" id="leaders" aria-labelledby="leadersTitle">
+      <header class="panel-head leaders-head">
+        <svg class="head-icon trophy" aria-hidden="true"><use href="#i-trophy" /></svg>
+        <h2 id="leadersTitle">GORAE LEARNING LEADERS</h2>
+        <p class="head-sub">오늘도, 한 걸음 더.</p>
+      </header>
+
+      <div class="leader-tabs" role="tablist" aria-label="리더보드 기간">
+        <button type="button" class="leader-tab" role="tab" id="leaderTabToday" data-period="today" aria-selected="true" aria-controls="leaderList">
+          <strong>TODAY</strong><span>오늘</span>
+        </button>
+        <button type="button" class="leader-tab" role="tab" id="leaderTabWeek" data-period="week" aria-selected="false" aria-controls="leaderList">
+          <strong>THIS WEEK</strong><span>월요일부터</span>
+        </button>
+      </div>
+
+      <ol class="leader-list" id="leaderList" role="tabpanel" aria-labelledby="leaderTabToday"></ol>
+      <p class="leader-empty" id="leaderEmpty" hidden>아직 기록이 없습니다.</p>
+    </section>
 
     <!-- 격려 문구 (모바일) -->
     <section class="cheer">
