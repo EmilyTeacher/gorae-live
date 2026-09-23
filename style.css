@@ -1160,6 +1160,8 @@ svg, img { display: block; }
   overflow-wrap: anywhere;
 }
 .ld-rank:not(.r1) .ld-names { font-weight: 600; color: #dfe7fb; }
+/* 안전장치: 캐시된 이전 app.js가 만든 왕관 아이콘이 커지지 않도록 */
+.leader svg { width: 18px; height: 18px; flex: none; color: rgb(var(--gold)); }
 .ld-count { display: flex; align-items: baseline; gap: 3px; white-space: nowrap; }
 .ld-count strong {
   font-weight: 800;
