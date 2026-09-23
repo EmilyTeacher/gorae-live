@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#040a18" />
+  <meta name="description" content="GORAE LIVE — 지금, 고래들은 공부 중입니다. 고래영어학원 실시간 학습현황" />
+  <title>GORAE LIVE</title>
+
+  <!-- Fonts: 본문 Pretendard(동적 서브셋), 디스플레이 Oswald, 필기체 Caveat / 한글 손글씨 Nanum Pen Script -->
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600&family=Nanum+Pen+Script&family=Oswald:wght@500;600;700&display=swap" />
+
+  <!-- 고래 이미지 미리 로드 (교체 시 경로만 바꾸면 됨) -->
+  <link rel="preload" as="image" href="assets/gorae-whale.webp" />
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- 아이콘 스프라이트 (고래 이미지는 assets/ 폴더의 별도 파일) -->
+  <svg class="sprite" aria-hidden="true" focusable="false">
+    <symbol id="i-users" viewBox="0 0 24 24"><path fill="currentColor" d="M9 11.5a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm7.5 0a3.3 3.3 0 1 0 0-6.6 3.3 3.3 0 0 0 0 6.6ZM9 13c-3.9 0-7 2.2-7 5v1.5c0 .6.4 1 1 1h12c.6 0 1-.4 1-1V18c0-2.8-3.1-5-7-5Zm7.5.3c-.6 0-1.2.1-1.8.2 1.4 1.1 2.3 2.7 2.3 4.5v1.5c0 .4-.1.7-.2 1H21c.6 0 1-.4 1-1V18c0-2.6-2.5-4.7-5.5-4.7Z"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2.2l2.9 6.1 6.7.8-4.9 4.6 1.3 6.6L12 17l-6 3.3 1.3-6.6-4.9-4.6 6.7-.8z"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path fill="currentColor" d="M2 5.2c0-.6.4-1 1-1.1 2.9-.4 5.6.2 8 1.7V20c-2.4-1.4-5-1.9-8-1.5-.5.1-1-.3-1-.9V5.2Zm20 0c0-.6-.4-1-1-1.1-2.9-.4-5.6.2-8 1.7V20c2.4-1.4 5-1.9 8-1.5.5.1 1-.3 1-.9V5.2Z"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></g></symbol>
+    <symbol id="i-tail" viewBox="0 0 24 24"><path fill="currentColor" d="M12 21c-.6-4.3-1.5-7-3.3-8.8C6.9 10.5 4.4 9.6 1.5 9.4 2.6 6 5.3 3.8 8.4 4c2 .1 3.2 1.4 3.6 3.6.4-2.2 1.6-3.5 3.6-3.6 3.1-.2 5.8 2 6.9 5.4-2.9.2-5.4 1.1-7.2 2.8C13.5 14 12.6 16.7 12 21Z"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 24 24"><path fill="currentColor" d="M12 21s-7.5-4.6-9.6-9.2C.9 8.5 2.8 4.5 6.6 4.5c2.2 0 3.6 1.2 5.4 3.3 1.8-2.1 3.2-3.3 5.4-3.3 3.8 0 5.7 4 4.2 7.3C19.5 16.4 12 21 12 21Z"/></symbol>
+    <symbol id="i-retry" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M20 12a8 8 0 1 1-2.6-5.9M20 4v5h-5"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24"><path fill="currentColor" d="M12 1.5c.5 5.4 3.1 8 8.5 8.5v.1c-5.4.5-8 3.1-8.5 8.5h-.1c-.5-5.4-3.1-8-8.5-8.5V10c5.4-.5 8-3.1 8.5-8.5h.1Z"/></symbol>
+    <symbol id="i-radio" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/><path d="M8.2 8.2a5.4 5.4 0 0 0 0 7.6M15.8 8.2a5.4 5.4 0 0 1 0 7.6M5.1 5.1a9.8 9.8 0 0 0 0 13.8M18.9 5.1a9.8 9.8 0 0 1 0 13.8"/></g></symbol>
+    <symbol id="i-crown" viewBox="0 0 24 24"><path fill="currentColor" d="M3 8.5l4.6 3.6L12 5l4.4 7.1L21 8.5 19.4 18H4.6L3 8.5ZM4.8 19.5h14.4v1.8H4.8z"/></symbol>
+  </svg>
+
+  <!-- 배경: 밤바다 (은은한 바다 빛 / 별 / 보케) -->
+  <div class="bg" aria-hidden="true">
+    <div class="bg-sun"></div>
+    <div class="bg-cloud c1"></div>
+    <div class="bg-cloud c2"></div>
+    <div class="bg-cloud c3"></div>
+  </div>
+
+  <div class="page">
+
+    <!-- 학습앱 복귀 링크: app.js의 APP_BACK_URL이 설정된 경우에만 표시 -->
+    <a class="back-link" id="backLink" hidden>← 학습앱으로 돌아가기</a>
+
+    <!-- ========================= HERO ========================= -->
+    <header class="hero">
+      <div class="hero-left">
+        <p class="brand-hand">오늘도,<br />더 멀리 생각하는<br />고래들 <svg class="heart" aria-hidden="true"><use href="#i-heart" /></svg></p>
+        <span class="rule" aria-hidden="true"></span>
+        <p class="motto">FROM<br />WORK HARD<br />TO THINK HARD</p>
+      </div>
+
+      <div class="hero-center">
+        <div class="onair" role="img" aria-label="ON AIR"><span>ON AIR</span></div>
+        <div class="title-row">
+          <h1 class="title">GORAE LIVE</h1>
+          <span class="live-tag"><i class="live-dot" aria-hidden="true"></i>LIVE</span>
+        </div>
+        <p class="subtitle">STUDENTS ARE LEARNING NOW</p>
+      </div>
+
+      <div class="hero-whale" aria-hidden="true">
+        <div class="whale-stage">
+          <div class="sea-back"></div>
+          <img class="whale" src="assets/gorae-whale.webp" alt="" width="1200" height="600" decoding="async" />
+          <span class="sparkle s1"></span>
+          <span class="sparkle s2"></span>
+          <span class="sparkle s3"></span>
+          <p class="script">Small Steps,<br />Big Changes. <svg class="heart" aria-hidden="true"><use href="#i-heart" /></svg></p>
+        </div>
+      </div>
+
+      <div class="hero-right">
+        <p class="date" id="date">&nbsp;</p>
+        <p class="clock" id="clock">--:--:--</p>
+        <span class="rule" aria-hidden="true"></span>
+        <p class="now-ko">지금, 고래들은<br />공부 중입니다.</p>
+        <!-- 연결 상태 표시 (DEMO / LIVE / 연결 지연 …) -->
+        <p class="status" id="status" data-state="connecting" role="status" aria-live="polite">
+          <i class="status-dot" aria-hidden="true"></i>
+          <span class="status-label">연결 중</span>
+          <span class="status-time"></span>
+        </p>
+      </div>
+    </header>
+
+    <!-- ========================= STATS ========================= -->
+    <section class="stats" aria-label="오늘의 학습 통계">
+      <article class="stat stat--blue">
+        <div class="stat-top">
+          <span class="stat-icon"><svg><use href="#i-users" /></svg></span>
+          <p class="stat-num"><span data-stat="learners">–</span><small>명</small></p>
+        </div>
+        <p class="stat-ko">오늘 학습 참여</p>
+        <p class="stat-en">TODAY'S LEARNERS</p>
+      </article>
+      <article class="stat stat--mint">
+        <div class="stat-top">
+          <span class="stat-icon"><svg><use href="#i-star" /></svg></span>
+          <p class="stat-num"><span data-stat="pass">–</span><small>회</small></p>
+        </div>
+        <p class="stat-ko">100% 통과</p>
+        <p class="stat-en">TODAY'S PASS</p>
+      </article>
+      <article class="stat stat--lavender">
+        <div class="stat-top">
+          <span class="stat-icon"><svg><use href="#i-book" /></svg></span>
+          <p class="stat-num"><span data-stat="completed">–</span><small>개</small></p>
+        </div>
+        <p class="stat-ko">오늘 완료된 학습</p>
+        <p class="stat-en">COMPLETED TODAY</p>
+      </article>
+      <article class="stat stat--gold">
+        <div class="stat-top">
+          <span class="stat-icon"><svg><use href="#i-retry" /></svg></span>
+          <p class="stat-num"><span data-stat="retry">–</span><small>개</small></p>
+        </div>
+        <p class="stat-ko">오늘 재학습</p>
+        <p class="stat-en">RETRY TODAY</p>
+      </article>
+    </section>
+
+    <!-- ========================= BOARD ========================= -->
+    <main class="board">
+
+      <!-- JUST PASSED -->
+      <section class="panel jp" aria-labelledby="jpTitle">
+        <header class="panel-head">
+          <svg class="head-icon spark" aria-hidden="true"><use href="#i-spark" /></svg>
+          <h2 id="jpTitle">JUST PASSED</h2>
+          <p class="head-sub">방금, 멋지게 해냈어요!</p>
+        </header>
+
+        <div class="jp-body">
+          <!-- 가장 최근 PASS 1명 -->
+          <article class="featured is-empty" id="featured" aria-live="polite">
+            <span class="new-badge" aria-hidden="true">NEW</span>
+            <div class="avatar avatar--lg" aria-hidden="true">
+              <img src="assets/gorae-whale-avatar.webp" alt="" width="200" height="200" />
+            </div>
+            <div class="f-meta">
+              <p class="f-time" data-f="time"></p>
+              <p class="f-name" data-f="student"></p>
+            </div>
+            <p class="f-course"><span data-f="course"></span> <span class="f-unit" data-f="unit"></span></p>
+            <div class="f-pass">
+              <span class="f-pass-main">
+                <svg class="crown" aria-hidden="true"><use href="#i-crown" /></svg>
+                <strong>100% PASS</strong>
+              </span>
+              <em class="goodjob">Good Job! <svg class="heart" aria-hidden="true"><use href="#i-heart" /></svg></em>
+            </div>
+            <p class="f-empty">오늘의 첫 PASS를 기다리고 있어요</p>
+          </article>
+
+          <!-- PC 전용: 최근 PASS 카드 3개 -->
+          <ul class="mini-cards" id="miniCards" aria-label="최근 PASS"></ul>
+        </div>
+      </section>
+
+      <!-- LIVE FEED (PC) / 최근 PASS 기록 (모바일) -->
+      <section class="panel feed" aria-labelledby="feedTitle">
+        <header class="panel-head">
+          <svg class="head-icon radio" aria-hidden="true"><use href="#i-radio" /></svg>
+          <svg class="head-icon clock-ic" aria-hidden="true"><use href="#i-clock" /></svg>
+          <h2 id="feedTitle"><span class="t-pc">LIVE FEED</span><span class="t-m">최근 PASS 기록</span></h2>
+          <span class="feed-live"><i aria-hidden="true"></i>실시간</span>
+        </header>
+        <ol class="feed-list" id="feedList"></ol>
+        <p class="feed-empty" id="feedEmpty" hidden>아직 오늘의 PASS 기록이 없습니다.</p>
+      </section>
+    </main>
+
+    <!-- 격려 문구 (모바일) -->
+    <section class="cheer">
+      <svg class="cheer-tail" aria-hidden="true"><use href="#i-tail" /></svg>
+      <div>
+        <p class="cheer-quote">“ 꾸준히 하는 너희가, 정말 멋지다. ”</p>
+        <p class="cheer-by">Gorae English Academy</p>
+      </div>
+    </section>
+
+    <!-- ========================= TICKER ========================= -->
+    <footer class="footer">
+      <div class="ticker-bar">
+        <span class="ticker-label"><i aria-hidden="true"></i>LIVE</span>
+        <div class="ticker" aria-label="LIVE 자막">
+          <div class="ticker-track" id="tickerTrack"></div>
+        </div>
+        <span class="ticker-brand">GORAE ENGLISH ACADEMY</span>
+      </div>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
