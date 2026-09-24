@@ -195,6 +195,26 @@ function normalize(raw) {
     latestPass: latest,
     recentPasses: recent,
     leaders: normalizeLeaders(raw.leaders),
+    details: normalizeDetails(raw.details),
+  };
+}
+
+/** [DETAILS] API details → 화면용 (허용된 필드만: 마스킹 이름 / 교재 / Day·Unit / 시간 / 학생별 PASS 횟수)
+    목록은 API가 stats와 같은 기록·같은 조건으로 만든 것 — 프론트에서 다시 계산하지 않음
+    개인정보: 학생별 학습(시도)·RETRY 횟수는 쓰지 않음, RETRY 기록은 학생 정보 없이 시간/교재/단원만 */
+function normalizeDetails(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const records = (list) => (Array.isArray(list) ? list : [])
+    .map((p) => ({ time: formatPassTime(p && p.time), student: maskName(p && p.student), course: cleanText(p && p.course), unit: cleanText(p && p.unit) }))
+    .filter((p) => p.student);
+  return {
+    learners: (Array.isArray(raw.learners) ? raw.learners : [])
+      .map((s) => ({ student: maskName(s && s.student), pass: toCount(s && s.pass) }))
+      .filter((s) => s.student),
+    passes: records(raw.passes),
+    completed: records(raw.completed),
+    retries: (Array.isArray(raw.retries) ? raw.retries : [])
+      .map((p) => ({ time: formatPassTime(p && p.time), course: cleanText(p && p.course), unit: cleanText(p && p.unit) })),
   };
 }
 
@@ -576,6 +596,101 @@ function initLeaders() {
   });
 }
 
+/* ---------- [DETAILS] 통계 카드 클릭 → 상세 목록 모달 ----------
+   카드 숫자와 같은 API 응답(data.stats / data.details)만 사용. 추가 API 호출 없음. */
+const DETAIL_KINDS = {
+  learners:  { title: "오늘 학습 참여",   en: "TODAY'S LEARNERS", unit: "명", icon: "#i-users", list: (d) => d.learners },
+  pass:      { title: "100% 통과",        en: "TODAY'S PASS",     unit: "회", icon: "#i-star",  list: (d) => d.passes,    tag: "PASS" },
+  completed: { title: "오늘 완료된 학습", en: "COMPLETED TODAY",  unit: "개", icon: "#i-book",  list: (d) => d.completed, tag: "완료" },
+  retry:     { title: "오늘 재학습",      en: "RETRY TODAY",      unit: "개", icon: "#i-retry", list: (d) => d.retries,   tag: "RETRY" },
+};
+const detailView = { kind: null, returnFocus: null };
+
+function openDetail(kind, trigger) {
+  const k = DETAIL_KINDS[kind];
+  if (!k) return;
+  detailView.kind = kind;
+  detailView.returnFocus = trigger || null;
+  const modal = $("#detailModal");
+  modal.querySelector(".dm-panel").dataset.kind = kind;
+  $("#dmIcon").setAttribute("href", k.icon);
+  $("#dmTitle").textContent = k.title;
+  $("#dmEn").textContent = k.en;
+  $("#dmUnit").textContent = k.unit;
+  $("#dmSearch").value = "";
+  $("#detailModal .dm-search").hidden = kind === "retry"; // RETRY는 이름이 없으므로 검색창 없음
+  $("#dmList").scrollTop = 0;
+  modal.hidden = false;
+  document.documentElement.classList.add("dm-open");
+  renderDetail();
+  modal.querySelector(".dm-close").focus();
+}
+
+function closeDetail() {
+  if (!detailView.kind) return;
+  detailView.kind = null;
+  $("#detailModal").hidden = true;
+  document.documentElement.classList.remove("dm-open");
+  if (detailView.returnFocus) detailView.returnFocus.focus();
+}
+
+function renderDetail() {
+  const kind = detailView.kind;
+  if (!kind) return;
+  const k = DETAIL_KINDS[kind];
+  const statKey = { learners: "learners", pass: "pass", completed: "completed", retry: "retry" }[kind];
+  const count = state.stats[statKey];
+  $("#dmCount").textContent = count == null ? "–" : count.toLocaleString("ko-KR");
+
+  const details = state.data && state.data.details;
+  const all = details ? k.list(details) : [];
+  const q = kind === "retry" ? "" : $("#dmSearch").value.trim();
+  const plain = (s) => s.replace(/[○\s]/g, "");
+  const items = q ? all.filter((it) => it.student.includes(q) || plain(it.student).includes(plain(q))) : all;
+
+  $("#dmMeta").textContent = !details
+    ? "상세 기록을 불러오는 중입니다."
+    : q ? `검색 결과 ${items.length}건 / 전체 ${all.length}건` : `전체 ${all.length}건 · 오늘 00:00 이후 (한국 시간)`;
+
+  $("#dmList").replaceChildren(...items.map((it) => {
+    const li = document.createElement("li");
+    if (kind === "learners") {
+      li.className = "dm-row dm-learner";
+      li.innerHTML = '<span class="dm-name"></span><span class="dm-pills"><span class="dm-pill is-pass"></span></span>';
+      li.querySelector(".dm-name").textContent = it.student;
+      li.querySelector(".dm-pill").textContent = `PASS ${it.pass ?? 0}회`;
+    } else if (kind === "retry") {
+      li.className = "dm-row dm-record is-anon"; // 학생 정보 없음
+      li.innerHTML = '<time class="dm-time"></time><span class="dm-course"></span><span class="dm-tag"></span>';
+      li.querySelector(".dm-time").textContent = it.time || "--:--";
+      li.querySelector(".dm-course").textContent = `${it.course} ${it.unit}`.trim();
+      li.querySelector(".dm-tag").textContent = k.tag;
+    } else {
+      li.className = "dm-row dm-record";
+      li.innerHTML = '<time class="dm-time"></time><span class="dm-name"></span><span class="dm-course"></span><span class="dm-tag"></span>';
+      li.querySelector(".dm-time").textContent = it.time || "--:--";
+      li.querySelector(".dm-name").textContent = it.student;
+      li.querySelector(".dm-course").textContent = `${it.course} ${it.unit}`.trim();
+      li.querySelector(".dm-tag").textContent = k.tag;
+    }
+    return li;
+  }));
+  $("#dmEmpty").hidden = !details || items.length > 0;
+  $("#dmEmpty").textContent = q ? "검색 결과가 없습니다." : "오늘 기록이 아직 없습니다.";
+}
+
+function initDetails() {
+  document.querySelectorAll(".stat[data-detail]").forEach((cardEl) => {
+    cardEl.addEventListener("click", () => openDetail(cardEl.dataset.detail, cardEl));
+    cardEl.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openDetail(cardEl.dataset.detail, cardEl); }
+    });
+  });
+  $("#detailModal").addEventListener("click", (e) => { if (e.target.closest("[data-close]")) closeDetail(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && detailView.kind) closeDetail(); });
+  $("#dmSearch").addEventListener("input", renderDetail);
+}
+
 /* ---------- 연결 상태 표시 ---------- */
 function setStatus(kind) {
   const el = $("#status");
@@ -607,6 +722,7 @@ function applyData(data) {
   renderLists(data);
   renderTicker(data);
   renderLeaders(data);
+  renderDetail();
   state.firstRender = false;
 }
 
@@ -689,6 +805,7 @@ function init() {
   tickClock();
   setInterval(tickClock, 1000);
   initLeaders();
+  initDetails();
   if (DEMO_MODE) {
     // DEMO: 고정 데이터 1회 표시 (데이터가 바뀌지 않으므로 반복 호출 없음)
     refresh();

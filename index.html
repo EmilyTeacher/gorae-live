@@ -18,7 +18,7 @@
   <link rel="preload" as="image" href="assets/gorae-whale.webp" />
 
   <!-- ?v= : 배포할 때마다 값을 바꾸면 브라우저 캐시와 섞이지 않고 CSS/JS가 함께 새로 로드됨 -->
-  <link rel="stylesheet" href="style.css?v=20260923-leaders2" />
+  <link rel="stylesheet" href="style.css?v=20260924-detail" />
 </head>
 <body>
 
@@ -95,7 +95,7 @@
 
     <!-- ========================= STATS ========================= -->
     <section class="stats" aria-label="오늘의 학습 통계">
-      <article class="stat stat--blue">
+      <article class="stat stat--blue" data-detail="learners" role="button" tabindex="0" aria-haspopup="dialog" aria-controls="detailModal">
         <div class="stat-top">
           <span class="stat-icon"><svg><use href="#i-users" /></svg></span>
           <p class="stat-num"><span data-stat="learners">–</span><small>명</small></p>
@@ -103,7 +103,7 @@
         <p class="stat-ko">오늘 학습 참여</p>
         <p class="stat-en">TODAY'S LEARNERS</p>
       </article>
-      <article class="stat stat--mint">
+      <article class="stat stat--mint" data-detail="pass" role="button" tabindex="0" aria-haspopup="dialog" aria-controls="detailModal">
         <div class="stat-top">
           <span class="stat-icon"><svg><use href="#i-star" /></svg></span>
           <p class="stat-num"><span data-stat="pass">–</span><small>회</small></p>
@@ -111,7 +111,7 @@
         <p class="stat-ko">100% 통과</p>
         <p class="stat-en">TODAY'S PASS</p>
       </article>
-      <article class="stat stat--lavender">
+      <article class="stat stat--lavender" data-detail="completed" role="button" tabindex="0" aria-haspopup="dialog" aria-controls="detailModal">
         <div class="stat-top">
           <span class="stat-icon"><svg><use href="#i-book" /></svg></span>
           <p class="stat-num"><span data-stat="completed">–</span><small>개</small></p>
@@ -119,7 +119,7 @@
         <p class="stat-ko">오늘 완료된 학습</p>
         <p class="stat-en">COMPLETED TODAY</p>
       </article>
-      <article class="stat stat--gold">
+      <article class="stat stat--gold" data-detail="retry" role="button" tabindex="0" aria-haspopup="dialog" aria-controls="detailModal">
         <div class="stat-top">
           <span class="stat-icon"><svg><use href="#i-retry" /></svg></span>
           <p class="stat-num"><span data-stat="retry">–</span><small>개</small></p>
@@ -235,8 +235,30 @@
         <span class="ticker-brand">GORAE ENGLISH ACADEMY</span>
       </div>
     </footer>
+
+    <!-- ===================== 통계 카드 상세 목록 (모달) ===================== -->
+    <div class="dmodal" id="detailModal" hidden>
+      <div class="dm-backdrop" data-close></div>
+      <section class="dm-panel" role="dialog" aria-modal="true" aria-labelledby="dmTitle">
+        <header class="dm-head">
+          <span class="dm-icon" aria-hidden="true"><svg><use id="dmIcon" href="#i-users" /></svg></span>
+          <div class="dm-titles">
+            <h2 id="dmTitle">오늘 학습 참여</h2>
+            <p class="dm-en" id="dmEn">TODAY'S LEARNERS</p>
+          </div>
+          <p class="dm-count"><strong id="dmCount">–</strong><small id="dmUnit">명</small></p>
+          <button type="button" class="dm-close" data-close aria-label="닫기">×</button>
+        </header>
+        <div class="dm-search">
+          <input type="search" id="dmSearch" placeholder="학생 이름 검색" autocomplete="off" aria-label="학생 이름 검색" />
+        </div>
+        <p class="dm-meta" id="dmMeta" aria-live="polite"></p>
+        <ol class="dm-list" id="dmList"></ol>
+        <p class="dm-empty" id="dmEmpty" hidden>기록이 없습니다.</p>
+      </section>
+    </div>
   </div>
 
-  <script src="app.js?v=20260923-leaders2"></script>
+  <script src="app.js?v=20260924-detail"></script>
 </body>
 </html>
