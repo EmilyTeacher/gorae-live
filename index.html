@@ -18,7 +18,7 @@
   <link rel="preload" as="image" href="assets/gorae-whale.webp" />
 
   <!-- ?v= : 배포할 때마다 값을 바꾸면 브라우저 캐시와 섞이지 않고 CSS/JS가 함께 새로 로드됨 -->
-  <link rel="stylesheet" href="style.css?v=20260925-race" />
+  <link rel="stylesheet" href="style.css?v=20260925-race2" />
 </head>
 <body>
 
@@ -122,7 +122,7 @@
       </article>
     </section>
 
-    <!-- TODAY'S PASS RACE: API details.learners(학생별 오늘 PASS 횟수, API 정렬)만 사용. PASS 0은 제외 -->
+    <!-- TODAY'S PASS RACE: API details.completed(학생+시험명 중복 제거)로 학생별 고유 PASS 수. PASS 0은 제외 -->
     <section class="race" aria-labelledby="raceTitle">
       <h2 class="race-title" id="raceTitle">TODAY'S PASS RACE</h2>
       <ol class="race-list" id="raceList"></ol>
@@ -260,6 +260,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=20260925-race"></script>
+  <script src="app.js?v=20260925-race2"></script>
 </body>
 </html>

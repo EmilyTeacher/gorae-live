@@ -1541,7 +1541,7 @@ html.dm-open { overflow: hidden; }
 }
 .race-title { grid-area: title; font-family: "Oswald", sans-serif; font-size: 0.95rem; font-weight: 600; letter-spacing: 0.08em; color: rgb(var(--gold)); white-space: nowrap; }
 .race-list, .race-empty { grid-area: list; }
-.race-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.race-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; }
 .race-empty { font-size: 0.85rem; color: #b9c6e6; }
 .race-row {
   display: flex;

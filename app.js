@@ -725,23 +725,34 @@ function topPassValues(learners) {
   return [...new Set(learners.map((it) => it.pass).filter((n) => n >= 1))].sort((a, b) => b - a).slice(0, 3);
 }
 
-/* ---------- TODAY'S PASS RACE: details.learners(학생별 오늘 PASS 횟수)만 사용 ---------- */
-const RACE_MAX_NAMES = 3;
+/* ---------- TODAY'S PASS RACE: 학생별 오늘 "고유" PASS 수 ----------
+   details.completed(API가 실명 학생 + 시험명으로 중복 제거한 100점 기록)를 마스킹 이름별로 셈
+   → 같은 시험/Day 반복 PASS는 1개, 다른 Day·Unit·단어장은 각각 +1
+   마스킹 이름이 같은 학생이 둘 이상이면 completed만으로는 나눌 수 없으므로 RACE에서 제외(합산 금지)
+   순위: 고유 PASS 수 dense rank TOP 3, 동점은 공동순위 (시간순으로 나누지 않음) */
 function renderPassRace(details) {
   const list = $("#raceList");
   if (!list) return;
   const learners = details ? details.learners : [];
-  const rows = topPassValues(learners).map((pass, i) => {
-    const names = learners.filter((it) => it.pass === pass).map((it) => it.student);
-    const more = names.length - RACE_MAX_NAMES;
+  const seen = {};
+  learners.forEach((it) => { seen[it.student] = (seen[it.student] || 0) + 1; });
+  const counts = {};
+  (details ? details.completed : []).forEach((c) => {
+    if (seen[c.student] === 1) counts[c.student] = (counts[c.student] || 0) + 1;
+  });
+  const racers = Object.keys(counts)
+    .map((student) => ({ student, pass: counts[student] }))
+    .sort((a, b) => b.pass - a.pass || a.student.localeCompare(b.student, "ko"));
+  const top = topPassValues(racers);
+  const rows = racers.filter((r) => top.includes(r.pass)).map((r) => {
+    const rank = top.indexOf(r.pass) + 1;
     const li = document.createElement("li");
-    li.className = `race-row r${i + 1}`;
+    li.className = `race-row r${rank}`;
     li.innerHTML = '<span class="race-medal" aria-hidden="true"></span><span class="race-names"></span><span class="race-pass"></span>';
-    li.querySelector(".race-medal").textContent = MEDALS[i + 1];
-    li.querySelector(".race-names").textContent = names.slice(0, RACE_MAX_NAMES).join(", ") + (more > 0 ? ` 외 ${more}명` : "");
-    li.querySelector(".race-names").title = names.join(", ");
-    li.querySelector(".race-pass").textContent = `PASS ${pass}`;
-    li.setAttribute("aria-label", `${i + 1}위 ${names.join(", ")} PASS ${pass}회`);
+    li.querySelector(".race-medal").textContent = MEDALS[rank];
+    li.querySelector(".race-names").textContent = r.student;
+    li.querySelector(".race-pass").textContent = `${r.pass} PASS`;
+    li.setAttribute("aria-label", `${rank}위 ${r.student} 오늘 ${r.pass} PASS`);
     return li;
   });
   list.replaceChildren(...rows);
