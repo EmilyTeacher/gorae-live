@@ -652,11 +652,18 @@ function renderDetail() {
     ? "상세 기록을 불러오는 중입니다."
     : q ? `검색 결과 ${items.length}건 / 전체 ${all.length}건` : `전체 ${all.length}건 · 오늘 00:00 이후 (한국 시간)`;
 
+  // TOP 3 메달: API가 보낸 정렬 그대로, PASS 횟수(1회 이상) 기준 dense rank — 동점은 같은 메달
+  const topPass = kind === "learners"
+    ? [...new Set(all.map((it) => it.pass).filter((n) => n >= 1))].sort((a, b) => b - a).slice(0, 3)
+    : [];
+
   $("#dmList").replaceChildren(...items.map((it) => {
     const li = document.createElement("li");
     if (kind === "learners") {
-      li.className = "dm-row dm-learner";
-      li.innerHTML = '<span class="dm-name"></span><span class="dm-pills"><span class="dm-pill is-pass"></span></span>';
+      const rank = topPass.indexOf(it.pass) + 1; // 0 = TOP 3 아님
+      li.className = rank ? `dm-row dm-learner is-top r${rank}` : "dm-row dm-learner";
+      li.innerHTML = '<span class="dm-medal" aria-hidden="true"></span><span class="dm-name"></span><span class="dm-pills"><span class="dm-pill is-pass"></span></span>';
+      li.querySelector(".dm-medal").textContent = ["", "🥇", "🥈", "🥉"][rank];
       li.querySelector(".dm-name").textContent = it.student;
       li.querySelector(".dm-pill").textContent = it.pass >= 1 ? `PASS ${it.pass}회` : "도전 중";
     } else if (kind === "retry") {
@@ -714,10 +721,25 @@ function setStatus(kind) {
   el.querySelector(".status-time").textContent = timeText;
 }
 
+/* ---------- LIVE 한 줄: API latestPass(마스킹 이름 + 오늘 PASS 시각)만 사용 ---------- */
+function renderLiveStrip(pass) {
+  const el = $("#liveNow");
+  if (!el) return;
+  if (!pass || !pass.time) {
+    el.textContent = "오늘의 첫 PASS를 기다리고 있어요";
+    return;
+  }
+  const p = kstParts(new Date(), kstTimeFmt);
+  const diff = Number(p.hour) * 60 + Number(p.minute) - toMinutes(pass.time);
+  const when = diff === 0 ? "방금" : diff > 0 && diff < 60 ? `${diff}분 전` : pass.time;
+  el.textContent = `${pass.student} · PASS · ${when}`;
+}
+
 /* ---------- 전체 적용 ---------- */
 function applyData(data) {
   state.data = data;
   renderStats(data.stats);
+  renderLiveStrip(data.latestPass);
   renderFeatured(data.latestPass, data.generatedAt);
   renderLists(data);
   renderTicker(data);

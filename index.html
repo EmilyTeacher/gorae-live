@@ -18,7 +18,7 @@
   <link rel="preload" as="image" href="assets/gorae-whale.webp" />
 
   <!-- ?v= : 배포할 때마다 값을 바꾸면 브라우저 캐시와 섞이지 않고 CSS/JS가 함께 새로 로드됨 -->
-  <link rel="stylesheet" href="style.css?v=20260924-challenging" />
+  <link rel="stylesheet" href="style.css?v=20260925-flow" />
 </head>
 <body>
 
@@ -103,30 +103,29 @@
         <p class="stat-ko">오늘 학습 참여</p>
         <p class="stat-en">TODAY'S LEARNERS</p>
       </article>
-      <article class="stat stat--mint" data-detail="pass" role="button" tabindex="0" aria-haspopup="dialog" aria-controls="detailModal">
+      <!-- DRILL: 데이터 미연결 — 실제 DRILL 집계가 생기면 이 자리에 연결 (지금은 항상 —) -->
+      <article class="stat stat--lavender stat--pending" data-stat-slot="drill">
+        <div class="stat-top">
+          <span class="stat-icon"><svg><use href="#i-book" /></svg></span>
+          <p class="stat-num"><span class="stat-pending" aria-label="데이터 준비 중">—</span></p>
+        </div>
+        <p class="stat-ko">오늘 DRILL 완료</p>
+        <p class="stat-en">DRILL COMPLETED</p>
+      </article>
+      <article class="stat stat--mint stat--goal" data-detail="pass" role="button" tabindex="0" aria-haspopup="dialog" aria-controls="detailModal">
         <div class="stat-top">
           <span class="stat-icon"><svg><use href="#i-star" /></svg></span>
           <p class="stat-num"><span data-stat="pass">–</span><small>회</small></p>
         </div>
-        <p class="stat-ko">100% 통과</p>
+        <p class="stat-ko">오늘 PASS</p>
         <p class="stat-en">TODAY'S PASS</p>
       </article>
-      <article class="stat stat--lavender" data-detail="completed" role="button" tabindex="0" aria-haspopup="dialog" aria-controls="detailModal">
-        <div class="stat-top">
-          <span class="stat-icon"><svg><use href="#i-book" /></svg></span>
-          <p class="stat-num"><span data-stat="completed">–</span><small>개</small></p>
-        </div>
-        <p class="stat-ko">오늘 완료된 학습</p>
-        <p class="stat-en">COMPLETED TODAY</p>
-      </article>
-      <article class="stat stat--gold" data-detail="retry" role="button" tabindex="0" aria-haspopup="dialog" aria-controls="detailModal">
-        <div class="stat-top">
-          <span class="stat-icon"><svg><use href="#i-retry" /></svg></span>
-          <p class="stat-num"><span data-stat="retry">–</span><small>개</small></p>
-        </div>
-        <p class="stat-ko">오늘 재학습</p>
-        <p class="stat-en">RETRY TODAY</p>
-      </article>
+    </section>
+
+    <!-- LIVE 한 줄 + 행동 유도 문구 (latestPass 실데이터만 사용) -->
+    <section class="live-strip" aria-label="실시간 PASS">
+      <p class="ls-now"><span class="live-tag ls-tag"><i class="live-dot" aria-hidden="true"></i>LIVE</span><span id="liveNow" aria-live="polite">&nbsp;</span></p>
+      <p class="ls-cta">한 번 더 하면, 순위가 바뀔지도 몰라요.</p>
     </section>
 
     <!-- ========================= BOARD ========================= -->
@@ -259,6 +258,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=20260924-challenging"></script>
+  <script src="app.js?v=20260925-flow"></script>
 </body>
 </html>
