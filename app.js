@@ -658,7 +658,7 @@ function renderDetail() {
       li.className = "dm-row dm-learner";
       li.innerHTML = '<span class="dm-name"></span><span class="dm-pills"><span class="dm-pill is-pass"></span></span>';
       li.querySelector(".dm-name").textContent = it.student;
-      li.querySelector(".dm-pill").textContent = `PASS ${it.pass ?? 0}회`;
+      li.querySelector(".dm-pill").textContent = it.pass >= 1 ? `PASS ${it.pass}회` : "도전 중";
     } else if (kind === "retry") {
       li.className = "dm-row dm-record is-anon"; // 학생 정보 없음
       li.innerHTML = '<time class="dm-time"></time><span class="dm-course"></span><span class="dm-tag"></span>';
