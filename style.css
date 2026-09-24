@@ -1524,25 +1524,47 @@ html.dm-open { overflow: hidden; }
 /* PASS: 절제된 강조 (정적 glow만) */
 .stat--goal .stat-num > span { text-shadow: 0 0 14px rgb(var(--c) / 0.55); }
 
-/* LIVE 한 줄 */
-.live-strip {
+/* TODAY'S PASS RACE — 통계 카드 바로 아래 컴팩트 podium */
+.race {
   position: relative;
   z-index: 2;
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas: "title list" "cta cta";
   align-items: center;
-  justify-content: space-between;
-  gap: 6px 16px;
+  gap: 8px 16px;
   margin-top: 10px;
-  padding: 9px 14px;
+  padding: 10px 14px;
   border: 1px solid var(--line-2);
   border-radius: var(--radius);
   background: rgba(8, 16, 38, 0.6);
 }
-.ls-now { display: flex; align-items: center; gap: 10px; min-width: 0; font-weight: 700; color: #fff; }
-.ls-tag { flex: none; }
-#liveNow { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ls-cta { font-size: 0.85rem; font-weight: 600; color: rgb(var(--gold)); }
+.race-title { grid-area: title; font-family: "Oswald", sans-serif; font-size: 0.95rem; font-weight: 600; letter-spacing: 0.08em; color: rgb(var(--gold)); white-space: nowrap; }
+.race-list, .race-empty { grid-area: list; }
+.race-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.race-empty { font-size: 0.85rem; color: #b9c6e6; }
+.race-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 1px solid rgb(var(--m) / 0.45);
+  border-radius: 10px;
+  background: linear-gradient(90deg, rgb(var(--m) / 0.12), transparent 80%);
+}
+.race-row.r1 { --m: var(--gold); border-color: rgb(var(--m) / 0.75); box-shadow: 0 0 10px rgb(var(--m) / 0.25); }
+.race-row.r2 { --m: 200 214 235; }
+.race-row.r3 { --m: 214 150 100; }
+.race-medal { flex: none; font-size: 1.15rem; }
+.race-names { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; color: #fff; }
+.race-row.r1 .race-names { font-size: 1.05rem; }
+.race-pass { flex: none; font-family: "Oswald", sans-serif; font-size: 0.9rem; font-weight: 600; letter-spacing: 0.04em; color: rgb(var(--m)); }
+.race-cta { grid-area: cta; font-size: 0.82rem; font-weight: 600; color: #ffd59a; }
+@media (max-width: 599px) {
+  .race { grid-template-columns: 1fr; grid-template-areas: "title" "list" "cta"; gap: 6px; }
+  .race-list { grid-template-columns: 1fr; gap: 6px; }
+}
 
 /* TOP 3 (오늘 학습 참여 목록) — 약한 강조 */
 .dm-medal { flex: none; width: 1.5em; text-align: center; }

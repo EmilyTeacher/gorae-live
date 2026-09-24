@@ -653,9 +653,7 @@ function renderDetail() {
     : q ? `검색 결과 ${items.length}건 / 전체 ${all.length}건` : `전체 ${all.length}건 · 오늘 00:00 이후 (한국 시간)`;
 
   // TOP 3 메달: API가 보낸 정렬 그대로, PASS 횟수(1회 이상) 기준 dense rank — 동점은 같은 메달
-  const topPass = kind === "learners"
-    ? [...new Set(all.map((it) => it.pass).filter((n) => n >= 1))].sort((a, b) => b - a).slice(0, 3)
-    : [];
+  const topPass = kind === "learners" ? topPassValues(all) : [];
 
   $("#dmList").replaceChildren(...items.map((it) => {
     const li = document.createElement("li");
@@ -663,7 +661,7 @@ function renderDetail() {
       const rank = topPass.indexOf(it.pass) + 1; // 0 = TOP 3 아님
       li.className = rank ? `dm-row dm-learner is-top r${rank}` : "dm-row dm-learner";
       li.innerHTML = '<span class="dm-medal" aria-hidden="true"></span><span class="dm-name"></span><span class="dm-pills"><span class="dm-pill is-pass"></span></span>';
-      li.querySelector(".dm-medal").textContent = ["", "🥇", "🥈", "🥉"][rank];
+      li.querySelector(".dm-medal").textContent = MEDALS[rank];
       li.querySelector(".dm-name").textContent = it.student;
       li.querySelector(".dm-pill").textContent = it.pass >= 1 ? `PASS ${it.pass}회` : "도전 중";
     } else if (kind === "retry") {
@@ -721,25 +719,41 @@ function setStatus(kind) {
   el.querySelector(".status-time").textContent = timeText;
 }
 
-/* ---------- LIVE 한 줄: API latestPass(마스킹 이름 + 오늘 PASS 시각)만 사용 ---------- */
-function renderLiveStrip(pass) {
-  const el = $("#liveNow");
-  if (!el) return;
-  if (!pass || !pass.time) {
-    el.textContent = "오늘의 첫 PASS를 기다리고 있어요";
-    return;
-  }
-  const p = kstParts(new Date(), kstTimeFmt);
-  const diff = Number(p.hour) * 60 + Number(p.minute) - toMinutes(pass.time);
-  const when = diff === 0 ? "방금" : diff > 0 && diff < 60 ? `${diff}분 전` : pass.time;
-  el.textContent = `${pass.student} · PASS · ${when}`;
+/* ---------- TOP 3 PASS 값: API 정렬 그대로, PASS 1회 이상만, dense rank (5,5,3 → 🥇🥇🥈) ---------- */
+const MEDALS = ["", "🥇", "🥈", "🥉"];
+function topPassValues(learners) {
+  return [...new Set(learners.map((it) => it.pass).filter((n) => n >= 1))].sort((a, b) => b - a).slice(0, 3);
+}
+
+/* ---------- TODAY'S PASS RACE: details.learners(학생별 오늘 PASS 횟수)만 사용 ---------- */
+const RACE_MAX_NAMES = 3;
+function renderPassRace(details) {
+  const list = $("#raceList");
+  if (!list) return;
+  const learners = details ? details.learners : [];
+  const rows = topPassValues(learners).map((pass, i) => {
+    const names = learners.filter((it) => it.pass === pass).map((it) => it.student);
+    const more = names.length - RACE_MAX_NAMES;
+    const li = document.createElement("li");
+    li.className = `race-row r${i + 1}`;
+    li.innerHTML = '<span class="race-medal" aria-hidden="true"></span><span class="race-names"></span><span class="race-pass"></span>';
+    li.querySelector(".race-medal").textContent = MEDALS[i + 1];
+    li.querySelector(".race-names").textContent = names.slice(0, RACE_MAX_NAMES).join(", ") + (more > 0 ? ` 외 ${more}명` : "");
+    li.querySelector(".race-names").title = names.join(", ");
+    li.querySelector(".race-pass").textContent = `PASS ${pass}`;
+    li.setAttribute("aria-label", `${i + 1}위 ${names.join(", ")} PASS ${pass}회`);
+    return li;
+  });
+  list.replaceChildren(...rows);
+  list.hidden = rows.length === 0;
+  $("#raceEmpty").hidden = !details || rows.length > 0;
 }
 
 /* ---------- 전체 적용 ---------- */
 function applyData(data) {
   state.data = data;
   renderStats(data.stats);
-  renderLiveStrip(data.latestPass);
+  renderPassRace(data.details);
   renderFeatured(data.latestPass, data.generatedAt);
   renderLists(data);
   renderTicker(data);
