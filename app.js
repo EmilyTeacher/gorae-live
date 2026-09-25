@@ -251,7 +251,8 @@ function renderStats(stats) {
     if (next == null) {
       el.textContent = "–";
     } else {
-      animateCount(el, prev ?? 0, next);
+      // 첫 렌더링은 최종값 즉시 표시(from === to), 이후 실시간 변경만 count-up
+      animateCount(el, state.firstRender ? next : prev ?? 0, next);
     }
     state.stats[key] = next;
   }
