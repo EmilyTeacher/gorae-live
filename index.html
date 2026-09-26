@@ -21,7 +21,7 @@
   <link rel="preload" as="image" href="assets/gorae-whale.webp" />
 
   <!-- ?v= : 배포할 때마다 값을 바꾸면 브라우저 캐시와 섞이지 않고 CSS/JS가 함께 새로 로드됨 -->
-  <link rel="stylesheet" href="style.css?v=20260926-lead6" />
+  <link rel="stylesheet" href="style.css?v=20260926-drill7" />
 </head>
 <body>
 
@@ -107,7 +107,7 @@
         <p class="stat-en">TODAY'S LEARNERS</p>
       </article>
       <!-- DRILL: API stats.drill = 오늘 전체 학생의 daily unique DRILL SET 수. 값이 없으면(API 연결 전) — -->
-      <article class="stat stat--lavender stat--pending" data-stat-slot="drill">
+      <article class="stat stat--lavender stat--pending" data-stat-slot="drill" data-detail="drill" role="button" tabindex="0" aria-haspopup="dialog" aria-controls="detailModal">
         <div class="stat-top">
           <span class="stat-icon"><svg><use href="#i-book" /></svg></span>
           <p class="stat-num"><span class="stat-pending" data-drill-stat aria-label="데이터 준비 중">—</span><small data-drill-unit hidden>세트</small></p>
@@ -280,6 +280,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=20260926-lead6"></script>
+  <script src="app.js?v=20260926-drill7"></script>
 </body>
 </html>

@@ -1431,6 +1431,7 @@ html.dm-open { overflow: hidden; }
 .dm-panel[data-kind="pass"] { --c: var(--cyan); }
 .dm-panel[data-kind="completed"] { --c: var(--violet); }
 .dm-panel[data-kind="retry"] { --c: var(--gold); }
+.dm-panel[data-kind="drill"] { --c: var(--violet); } /* [V7] 상단 DRILL 카드(lavender)와 같은 색 */
 @keyframes dm-in { from { opacity: 0; transform: translateY(10px) scale(0.98); } to { opacity: 1; transform: none; } }
 
 .dm-head {

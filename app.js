@@ -231,6 +231,15 @@ function normalizeDetails(raw) {
     completed: records(raw.completed),
     retries: (Array.isArray(raw.retries) ? raw.retries : [])
       .map((p) => ({ time: formatPassTime(p && p.time), course: cleanText(p && p.course), unit: cleanText(p && p.unit) })),
+    // [V7] 오늘 DRILL 완료 (API가 stats.drill과 같은 기준으로 만든 목록: 같은 날 같은 SET 반복은 최근 1건, 최신순). 옛 API면 null
+    drills: Array.isArray(raw.drills)
+      ? raw.drills
+        .map((p) => {
+          const set = toCount(p && p.set), of = toCount(p && p.setCount);
+          return { time: formatPassTime(p && p.time), student: maskName(p && p.student), course: cleanText(p && p.course), unit: cleanText(p && p.unit), setLabel: set ? `SET ${set}${of ? "/" + of : ""}` : "SET" };
+        })
+        .filter((p) => p.student)
+      : null,
   };
 }
 
@@ -699,6 +708,7 @@ const DETAIL_KINDS = {
   pass:      { title: "100% 통과",        en: "TODAY'S PASS",     unit: "회", icon: "#i-star",  list: (d) => d.passes,    tag: "PASS" },
   completed: { title: "오늘 완료된 학습", en: "COMPLETED TODAY",  unit: "개", icon: "#i-book",  list: (d) => d.completed, tag: "완료" },
   retry:     { title: "오늘 재학습",      en: "RETRY TODAY",      unit: "개", icon: "#i-retry", list: (d) => d.retries,   tag: "RETRY" },
+  drill:     { title: "오늘 DRILL 완료",  en: "DRILL COMPLETED",  unit: "세트", icon: "#i-book", list: (d) => d.drills }, // [V7] 태그 자리에 SET n/m
 };
 const detailView = { kind: null, returnFocus: null };
 
@@ -735,16 +745,17 @@ function renderDetail() {
   if (!kind) return;
   const k = DETAIL_KINDS[kind];
   const statKey = { learners: "learners", pass: "pass", completed: "completed", retry: "retry" }[kind];
-  const count = state.stats[statKey];
+  const count = kind === "drill" ? drillView.value : state.stats[statKey]; // [V7] DRILL은 상단 카드와 같은 stats.drill
   $("#dmCount").textContent = count == null ? "–" : count.toLocaleString("ko-KR");
 
   const details = state.data && state.data.details;
-  const all = details ? k.list(details) : [];
+  const list = details ? k.list(details) : null; // DRILL 목록은 옛 API에는 없음(null)
+  const all = list || [];
   const q = kind === "retry" ? "" : $("#dmSearch").value.trim();
   const plain = (s) => s.replace(/[○\s]/g, "");
   const items = q ? all.filter((it) => it.student.includes(q) || plain(it.student).includes(plain(q))) : all;
 
-  $("#dmMeta").textContent = !details
+  $("#dmMeta").textContent = !list
     ? "상세 기록을 불러오는 중입니다."
     : q ? `검색 결과 ${items.length}건 / 전체 ${all.length}건` : `전체 ${all.length}건 · 오늘 00:00 이후 (한국 시간)`;
 
@@ -772,11 +783,11 @@ function renderDetail() {
       li.querySelector(".dm-time").textContent = it.time || "--:--";
       li.querySelector(".dm-name").textContent = it.student;
       li.querySelector(".dm-course").textContent = `${it.course} ${it.unit}`.trim();
-      li.querySelector(".dm-tag").textContent = k.tag;
+      li.querySelector(".dm-tag").textContent = kind === "drill" ? it.setLabel : k.tag;
     }
     return li;
   }));
-  $("#dmEmpty").hidden = !details || items.length > 0;
+  $("#dmEmpty").hidden = !list || items.length > 0;
   $("#dmEmpty").textContent = q ? "검색 결과가 없습니다." : "오늘 기록이 아직 없습니다.";
 }
 
