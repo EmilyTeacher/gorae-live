@@ -18,7 +18,7 @@
   <link rel="preload" as="image" href="assets/gorae-whale.webp" />
 
   <!-- ?v= : 배포할 때마다 값을 바꾸면 브라우저 캐시와 섞이지 않고 CSS/JS가 함께 새로 로드됨 -->
-  <link rel="stylesheet" href="style.css?v=20260925-stat1" />
+  <link rel="stylesheet" href="style.css?v=20260926-lead6" />
 </head>
 <body>
 
@@ -103,11 +103,11 @@
         <p class="stat-ko">오늘 학습 참여</p>
         <p class="stat-en">TODAY'S LEARNERS</p>
       </article>
-      <!-- DRILL: 데이터 미연결 — 실제 DRILL 집계가 생기면 이 자리에 연결 (지금은 항상 —) -->
+      <!-- DRILL: API stats.drill = 오늘 전체 학생의 daily unique DRILL SET 수. 값이 없으면(API 연결 전) — -->
       <article class="stat stat--lavender stat--pending" data-stat-slot="drill">
         <div class="stat-top">
           <span class="stat-icon"><svg><use href="#i-book" /></svg></span>
-          <p class="stat-num"><span class="stat-pending" aria-label="데이터 준비 중">—</span></p>
+          <p class="stat-num"><span class="stat-pending" data-drill-stat aria-label="데이터 준비 중">—</span><small data-drill-unit hidden>세트</small></p>
         </div>
         <p class="stat-ko">오늘 DRILL 완료</p>
         <p class="stat-en">DRILL COMPLETED</p>
@@ -205,16 +205,33 @@
       </header>
 
       <div class="leader-tabs" role="tablist" aria-label="리더보드 기간">
-        <button type="button" class="leader-tab" role="tab" id="leaderTabToday" data-period="today" aria-selected="true" aria-controls="leaderList">
+        <button type="button" class="leader-tab" role="tab" id="leaderTabToday" data-period="today" aria-selected="true" aria-controls="leaderPanel">
           <strong>TODAY RANKING</strong><span>오늘</span>
         </button>
-        <button type="button" class="leader-tab" role="tab" id="leaderTabWeek" data-period="week" aria-selected="false" aria-controls="leaderList">
+        <button type="button" class="leader-tab" role="tab" id="leaderTabWeek" data-period="week" aria-selected="false" aria-controls="leaderPanel">
           <strong>WEEKLY RANKING</strong><span>월요일부터</span>
         </button>
       </div>
 
-      <ol class="leader-list" id="leaderList" role="tabpanel" aria-labelledby="leaderTabToday"></ol>
-      <p class="leader-empty" id="leaderEmpty" hidden>아직 기록이 없습니다.</p>
+      <div class="leader-panel" id="leaderPanel" role="tabpanel" aria-labelledby="leaderTabToday">
+        <!-- [V6] 전체 단어장 합산 TOP 3 — TEST(UNITS)와 DRILL(SETS)은 따로 셈 (합산 점수 없음). API에 필드가 없으면 숨김 -->
+        <div class="overall-board" id="overallBoard" hidden>
+          <article class="leader leader--overall leader--test" id="testLeaders" aria-labelledby="testLeadersTitle">
+            <p class="ld-course"><span class="ld-heading"><span class="ld-title" id="testLeadersTitle">TEST LEADERS</span><span class="ld-sub">전체 단어장 TEST 합산</span></span></p>
+            <ol class="ld-ranks"></ol>
+            <p class="ld-empty" hidden>아직 기록이 없습니다.</p>
+          </article>
+          <article class="leader leader--overall leader--drill" id="drillLeaders" aria-labelledby="drillLeadersTitle">
+            <p class="ld-course"><span class="ld-heading"><span class="ld-title" id="drillLeadersTitle">DRILL LEADERS</span><span class="ld-sub">실제 DRILL 완료</span></span></p>
+            <ol class="ld-ranks"></ol>
+            <p class="ld-empty" hidden>아직 기록이 없습니다.</p>
+          </article>
+        </div>
+        <h3 class="leader-section" id="bookLeadersTitle" hidden>BY WORDBOOK <span>단어장별 TEST 랭킹</span></h3>
+
+        <ol class="leader-list" id="leaderList"></ol>
+        <p class="leader-empty" id="leaderEmpty" hidden>아직 기록이 없습니다.</p>
+      </div>
     </section>
 
     <!-- 격려 문구 (모바일) -->
@@ -260,6 +277,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=20260925-stat1"></script>
+  <script src="app.js?v=20260926-lead6"></script>
 </body>
 </html>

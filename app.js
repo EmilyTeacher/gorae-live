@@ -196,7 +196,23 @@ function normalize(raw) {
     recentPasses: recent,
     leaders: normalizeLeaders(raw.leaders),
     details: normalizeDetails(raw.details),
+    // [V6] 추가 필드 — 없으면 null (옛 API): 화면은 기존과 똑같이 보임
+    drillStat: s.drill == null || s.drill === "" ? null : toCount(s.drill), // toCount(null)은 0이 되므로 따로 처리
+    testLeaders: normalizeOverall(raw.testLeaders, "unitCount"),
+    drillLeaders: normalizeOverall(raw.drillLeaders, "setCount"),
   };
+}
+
+/** [V6] 전체 단어장 합산 TOP 3 → 화면용 (허용된 필드만: 순위 / 개수 / 마스킹 이름)
+    rank는 API가 보낸 dense rank 그대로. TEST = unitCount(UNITS), DRILL = setCount(SETS) — 서로 합치지 않음 */
+function normalizeOverall(raw, countKey) {
+  if (!raw || typeof raw !== "object") return null;
+  const names = (v) => (Array.isArray(v) ? v : []).map(maskName).filter(Boolean);
+  const clean = (p) => (Array.isArray(p && p.ranks) ? p.ranks : [])
+    .map((r) => ({ rank: toCount(r && r.rank), count: toCount(r && r[countKey]), students: names(r && r.students) }))
+    .filter((r) => r.rank >= 1 && r.rank <= 3 && r.count && r.students.length)
+    .sort((a, b) => a.rank - b.rank);
+  return { today: clean(raw.today), week: clean(raw.week) };
 }
 
 /** [DETAILS] API details → 화면용 (허용된 필드만: 마스킹 이름 / 교재 / Day·Unit / 시간 / 학생별 PASS 횟수)
@@ -578,11 +594,90 @@ function setLeaderPeriod(period) {
   document.querySelectorAll(".leader-tab").forEach((tab) => {
     const on = tab.dataset.period === period;
     tab.setAttribute("aria-selected", on ? "true" : "false");
-    if (on) $("#leaderList").setAttribute("aria-labelledby", tab.id);
+    if (on) $("#leaderPanel").setAttribute("aria-labelledby", tab.id);
   });
   $("#leaderList").replaceChildren();
   leaderView.renderedKey = "";
   renderLeaders(state.data);
+  overallView.renderedKey = "";
+  renderOverall(state.data);
+}
+
+/* ---------- [V6] 전체 단어장 TEST LEADERS / DRILL LEADERS ----------
+   같은 10초 refresh 응답(data.testLeaders / data.drillLeaders)만 사용. 추가 API 호출 없음.
+   TEST = UNITS, DRILL = SETS (두 값을 합산하지 않음). 기존 단어장별 랭킹(renderLeaders)은 그대로 */
+const overallView = { renderedKey: "" };
+const OVERALL_BOARDS = [
+  { id: "testLeaders", field: "testLeaders", label: "TEST", word: (n) => (n === 1 ? "UNIT" : "UNITS") },
+  { id: "drillLeaders", field: "drillLeaders", label: "DRILL", word: (n) => (n === 1 ? "SET" : "SETS") },
+];
+
+function renderOverall(data) {
+  if (!data) return;
+  const period = leaderView.period;
+  const available = OVERALL_BOARDS.some((b) => data[b.field]);
+  $("#overallBoard").hidden = !available;
+  $("#bookLeadersTitle").hidden = !available;
+  if (!available) {
+    overallView.renderedKey = "";
+    return;
+  }
+  const key = period + JSON.stringify(OVERALL_BOARDS.map((b) => data[b.field] && data[b.field][period]));
+  if (key === overallView.renderedKey) return; // 변화 없음 → DOM 그대로
+  const samePeriod = overallView.renderedKey.startsWith(period);
+  overallView.renderedKey = key;
+
+  for (const b of OVERALL_BOARDS) {
+    const card = $(`#${b.id}`);
+    const ranks = (data[b.field] && data[b.field][period]) || [];
+    const prev = card.dataset.sig;
+    const sig = period + JSON.stringify(ranks);
+    if (prev !== sig) {
+      card.querySelector(".ld-ranks").replaceChildren(...ranks.map((r) => {
+        const row = document.createElement("li");
+        row.className = `ld-rank r${r.rank}`;
+        row.setAttribute("aria-label", `${b.label} ${r.rank}위 ${r.students.join(", ")}, ${r.count} ${b.word(r.count)}`);
+        row.innerHTML = '<span class="ld-medal" aria-hidden="true"></span><span class="ld-names"></span><span class="ld-count" aria-hidden="true"><strong></strong><small></small></span>';
+        row.querySelector(".ld-medal").textContent = r.rank;
+        // 동점자가 많아 줄이 넘칠 때 이름 중간(김○ / 준)이 아니라 이름 사이에서만 줄바꿈
+        const namesEl = row.querySelector(".ld-names");
+        r.students.forEach((s, i) => {
+          if (i) namesEl.append(" · ");
+          const nm = document.createElement("span");
+          nm.className = "ld-name";
+          nm.textContent = s;
+          namesEl.append(nm);
+        });
+        row.querySelector(".ld-count strong").textContent = r.count.toLocaleString("ko-KR");
+        row.querySelector(".ld-count small").textContent = b.word(r.count);
+        return row;
+      }));
+      card.querySelector(".ld-empty").hidden = ranks.length > 0;
+    }
+    card.dataset.sig = sig;
+    // 같은 탭에서 순위가 바뀌면 짧은 glow (첫 표시/탭 전환 시에는 없음)
+    if (samePeriod && prev && prev !== sig && ranks.length) playOnce(card, ["ld-up"], 1700);
+  }
+}
+
+/* ---------- [V6] 상단 DRILL 완료 카드: API stats.drill (오늘 daily unique SET 수). 없으면 — ---------- */
+const drillView = { value: undefined };
+function renderDrillStat(value) {
+  if (value === drillView.value) return;
+  const el = document.querySelector("[data-drill-stat]");
+  if (!el) return;
+  const pending = value == null;
+  document.querySelector('[data-stat-slot="drill"]').classList.toggle("stat--pending", pending);
+  el.classList.toggle("stat-pending", pending);
+  document.querySelector("[data-drill-unit]").hidden = pending;
+  if (pending) {
+    el.setAttribute("aria-label", "데이터 준비 중");
+    el.textContent = "—";
+  } else {
+    el.removeAttribute("aria-label");
+    animateCount(el, state.firstRender || drillView.value == null ? value : drillView.value, value);
+  }
+  drillView.value = value;
 }
 
 function initLeaders() {
@@ -765,11 +860,13 @@ function renderPassRace(details) {
 function applyData(data) {
   state.data = data;
   renderStats(data.stats);
+  renderDrillStat(data.drillStat); // [V6]
   renderPassRace(data.details);
   renderFeatured(data.latestPass, data.generatedAt);
   renderLists(data);
   renderTicker(data);
   renderLeaders(data);
+  renderOverall(data); // [V6]
   renderDetail();
   state.firstRender = false;
 }
