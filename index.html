@@ -21,7 +21,7 @@
   <link rel="preload" as="image" href="assets/gorae-whale.webp" />
 
   <!-- ?v= : 배포할 때마다 값을 바꾸면 브라우저 캐시와 섞이지 않고 CSS/JS가 함께 새로 로드됨 -->
-  <link rel="stylesheet" href="style.css?v=20260926-swipe9" />
+  <link rel="stylesheet" href="style.css?v=20260927-now10" />
 </head>
 <body>
 
@@ -131,6 +131,15 @@
       <ol class="race-list" id="raceList"></ol>
       <p class="race-empty" id="raceEmpty" hidden>오늘의 첫 PASS를 기다리고 있어요</p>
       <p class="race-cta">🔥 한 번 더 하면, 순위가 바뀔 수 있어요.</p>
+    </section>
+
+    <!-- NOW LEARNING: GORAE LEARNING LAB 공개 API(/api/now-learning) — 최근 3분 활동 student, 이름은 서버에서 마스킹됨 -->
+    <section class="now" id="nowLearning" data-state="empty" aria-labelledby="nowTitle" hidden>
+      <div class="now-head">
+        <h2 class="now-title" id="nowTitle"><span class="now-dot" aria-hidden="true"></span>NOW LEARNING</h2>
+        <p class="now-sub" id="nowSub" aria-live="polite"></p>
+      </div>
+      <ul class="now-list" id="nowList" hidden></ul>
     </section>
 
     <!-- ========================= BOARD ========================= -->
@@ -296,6 +305,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=20260926-swipe9"></script>
+  <script src="app.js?v=20260927-now10"></script>
 </body>
 </html>

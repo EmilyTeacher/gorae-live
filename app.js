@@ -1095,3 +1095,88 @@ window.GoraeLive = {
 };
 
 init();
+
+/* =====================================================================
+   NOW LEARNING — GORAE LEARNING LAB 공개 API (지금 공부 중인 student, 최근 3분 활동)
+   - 기존 LIVE 데이터·갱신·상태 표시와 완전히 별도. 실패해도 기존 화면에는 영향 없음
+   - 이름은 API에서 이미 마스킹됨 → 그대로 표시만. current_area는 대문자로만 바꿔 표시
+   ===================================================================== */
+const NOW_LEARNING_URL = "https://gorae-learning-app-builder.ezzang.chatgpt.site/api/now-learning";
+const NOW_REFRESH_MS = 30000;       // 30초마다 다시 조회 (탭이 숨겨지면 멈춤)
+const NOW_STALE_MS = 3 * 60 * 1000; // 이보다 오래 못 받아오면 지난 목록을 숨김
+const nowState = { timer: 0, lastOkAt: 0, key: null, inFlight: false };
+
+function nowAreaTone(area) {
+  const a = area.toLowerCase();
+  if (a.includes("drill")) return "now-drill";
+  if (a.includes("test")) return "now-test";
+  if (a.includes("grammar")) return "now-grammar";
+  return "now-other";
+}
+
+function renderNowLearning(data) {
+  const students = Array.isArray(data?.students) ? data.students.filter((s) => s && typeof s.name === "string") : [];
+  const count = Number.isFinite(data?.count) ? data.count : students.length;
+  const section = $("#nowLearning");
+  section.hidden = false;
+  const key = JSON.stringify([count, students.map((s) => [s.name, s.current_area])]);
+  if (key === nowState.key) return; // 바뀐 게 없으면 다시 그리지 않음
+  nowState.key = key;
+  const live = count > 0;
+  section.dataset.state = live ? "live" : "empty";
+  $("#nowSub").textContent = live ? `지금 공부 중 · ${count}명` : "지금은 잠시 쉬어가는 중이에요.";
+  const list = $("#nowList");
+  list.hidden = !live || students.length === 0;
+  list.replaceChildren(
+    ...(live ? students : []).map((s) => {
+      const area = String(s.current_area ?? "").trim() || "LEARNING";
+      const li = document.createElement("li");
+      li.className = `now-row ${nowAreaTone(area)}`;
+      li.innerHTML = '<span class="now-pip" aria-hidden="true"></span><span class="now-name"></span><span class="now-area"></span>';
+      li.querySelector(".now-name").textContent = s.name;
+      li.querySelector(".now-area").textContent = area.toUpperCase();
+      return li;
+    }),
+  );
+}
+
+async function refreshNowLearning() {
+  if (nowState.inFlight) return;
+  nowState.inFlight = true;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    const res = await fetch(NOW_LEARNING_URL, { cache: "no-store", signal: controller.signal });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    renderNowLearning(await res.json());
+    nowState.lastOkAt = Date.now();
+  } catch (err) {
+    console.warn("[GORAE LIVE] NOW LEARNING 갱신 실패:", err);
+    if (Date.now() - nowState.lastOkAt > NOW_STALE_MS) {
+      $("#nowLearning").hidden = true;
+      nowState.key = null;
+    }
+  } finally {
+    clearTimeout(timeout);
+    nowState.inFlight = false;
+  }
+}
+
+function scheduleNowLearning() {
+  clearTimeout(nowState.timer);
+  nowState.timer = setTimeout(async () => {
+    await refreshNowLearning();
+    scheduleNowLearning();
+  }, NOW_REFRESH_MS);
+}
+
+function initNowLearning() {
+  if (DEMO_MODE) return;
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) clearTimeout(nowState.timer);
+    else refreshNowLearning().then(scheduleNowLearning);
+  });
+  refreshNowLearning().then(scheduleNowLearning);
+}
+
+initNowLearning();

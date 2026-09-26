@@ -1746,3 +1746,58 @@ html.dm-open { overflow: hidden; }
 .dm-learner.is-top.r1 { background: linear-gradient(90deg, rgb(var(--gold) / 0.18), transparent 75%); }
 .dm-learner.is-top .dm-name { font-weight: 800; }
 .dm-learner.r1 .dm-pill { border-color: rgb(var(--gold) / 0.7); color: #ffe39a; box-shadow: 0 0 8px rgb(var(--gold) / 0.3); }
+
+/* NOW LEARNING — PASS RACE 아래 컴팩트 LIVE 패널 (GORAE LEARNING LAB 공개 API, 지금 공부 중인 student) */
+.now {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px 16px;
+  padding: 10px 14px;
+  border: 1px solid rgb(var(--cyan) / 0.38);
+  border-radius: var(--radius);
+  background: rgba(8, 16, 38, 0.6);
+  box-shadow: 0 0 14px rgb(var(--cyan) / 0.08);
+}
+.now[hidden], .now-list[hidden] { display: none; }
+.now-head { min-width: 0; }
+.now-title { display: flex; align-items: center; gap: 7px; font-family: "Oswald", sans-serif; font-size: 0.95rem; font-weight: 600; letter-spacing: 0.08em; color: rgb(var(--cyan)); white-space: nowrap; }
+.now-sub { margin-top: 2px; font-size: 0.8rem; font-weight: 600; color: #b9c6e6; white-space: nowrap; }
+.now-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: rgb(var(--cyan)); animation: now-pulse 1.8s ease-out infinite; }
+.now[data-state="empty"] { grid-template-columns: minmax(0, 1fr); border-color: var(--line-2); box-shadow: none; }
+.now[data-state="empty"] .now-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 14px; }
+.now[data-state="empty"] .now-title { color: #8fa3cc; }
+.now[data-state="empty"] .now-dot { background: #5d6f95; animation: none; }
+.now[data-state="empty"] .now-sub { margin-top: 0; white-space: normal; }
+.now-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px 8px; max-height: 5.9rem; overflow-y: auto; }
+.now-row {
+  --m: var(--blue);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 5px 10px;
+  border: 1px solid rgb(var(--m) / 0.42);
+  border-radius: 10px;
+  background: linear-gradient(90deg, rgb(var(--m) / 0.13), transparent 80%);
+  animation: now-in 0.4s ease-out;
+}
+.now-row.now-drill { --m: var(--cyan); }
+.now-row.now-test { --m: var(--blue); }
+.now-row.now-grammar { --m: var(--violet); }
+.now-pip { flex: none; width: 6px; height: 6px; border-radius: 50%; background: rgb(var(--m)); box-shadow: 0 0 6px rgb(var(--m) / 0.9); animation: now-blink 1.6s ease-in-out infinite; }
+.now-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; color: #fff; }
+.now-area { flex: none; font-family: "Oswald", sans-serif; font-size: 0.78rem; font-weight: 600; letter-spacing: 0.06em; color: rgb(var(--m)); }
+@keyframes now-pulse { 0% { box-shadow: 0 0 0 0 rgb(var(--cyan) / 0.55); } 100% { box-shadow: 0 0 0 8px rgb(var(--cyan) / 0); } }
+@keyframes now-blink { 50% { opacity: 0.35; } }
+@keyframes now-in { from { opacity: 0; transform: translateY(3px); } }
+@media (max-width: 599px) {
+  .now { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .now-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .now-list { grid-template-columns: minmax(0, 1fr); max-height: 9.4rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .now-dot, .now-pip, .now-row { animation: none; }
+}
