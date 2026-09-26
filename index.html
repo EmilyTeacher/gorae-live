@@ -21,7 +21,7 @@
   <link rel="preload" as="image" href="assets/gorae-whale.webp" />
 
   <!-- ?v= : 배포할 때마다 값을 바꾸면 브라우저 캐시와 섞이지 않고 CSS/JS가 함께 새로 로드됨 -->
-  <link rel="stylesheet" href="style.css?v=20260926-drill7" />
+  <link rel="stylesheet" href="style.css?v=20260926-swipe9" />
 </head>
 <body>
 
@@ -222,11 +222,25 @@
           <article class="leader leader--overall leader--test" id="testLeaders" aria-labelledby="testLeadersTitle">
             <p class="ld-course"><span class="ld-heading"><span class="ld-title" id="testLeadersTitle">TEST LEADERS</span><span class="ld-sub">전체 단어장 TEST 합산</span></span></p>
             <ol class="ld-ranks"></ol>
+            <!-- [V8] TOP 3 밖의 나머지 참여자 전원 (순위 번호·메달 없음, 많으면 이 영역만 스크롤). 없으면 숨김 -->
+            <div class="ld-all" hidden>
+              <p class="ld-all-head">ALL LEARNERS <span>참여 기록</span></p>
+              <ol class="ld-all-list"></ol>
+              <!-- [V9] 모바일 전용: 카드에는 앞의 5명까지, 나머지는 기존 상세 모달로 (데스크톱에서는 표시 안 함) -->
+              <button type="button" class="ld-all-more" aria-haspopup="dialog" aria-controls="detailModal" hidden></button>
+            </div>
             <p class="ld-empty" hidden>아직 기록이 없습니다.</p>
           </article>
           <article class="leader leader--overall leader--drill" id="drillLeaders" aria-labelledby="drillLeadersTitle">
             <p class="ld-course"><span class="ld-heading"><span class="ld-title" id="drillLeadersTitle">DRILL LEADERS</span><span class="ld-sub">실제 DRILL 완료</span></span></p>
             <ol class="ld-ranks"></ol>
+            <!-- [V8] TOP 3 밖의 나머지 참여자 전원 (순위 번호·메달 없음, 많으면 이 영역만 스크롤). 없으면 숨김 -->
+            <div class="ld-all" hidden>
+              <p class="ld-all-head">ALL LEARNERS <span>참여 기록</span></p>
+              <ol class="ld-all-list"></ol>
+              <!-- [V9] 모바일 전용: 카드에는 앞의 5명까지, 나머지는 기존 상세 모달로 (데스크톱에서는 표시 안 함) -->
+              <button type="button" class="ld-all-more" aria-haspopup="dialog" aria-controls="detailModal" hidden></button>
+            </div>
             <p class="ld-empty" hidden>아직 기록이 없습니다.</p>
           </article>
         </div>
@@ -235,6 +249,8 @@
         <ol class="leader-list" id="leaderList"></ol>
         <p class="leader-empty" id="leaderEmpty" hidden>아직 기록이 없습니다.</p>
       </div>
+      <!-- [V9] 모바일 carousel 위치 표시 (카드 수만큼 JS가 만듦, 데스크톱에서는 숨김) -->
+      <div class="leader-dots" id="leaderDots" aria-label="랭킹 카드 위치"></div>
     </section>
 
     <!-- 격려 문구 (모바일) -->
@@ -280,6 +296,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=20260926-drill7"></script>
+  <script src="app.js?v=20260926-swipe9"></script>
 </body>
 </html>

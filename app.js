@@ -212,7 +212,11 @@ function normalizeOverall(raw, countKey) {
     .map((r) => ({ rank: toCount(r && r.rank), count: toCount(r && r[countKey]), students: names(r && r.students) }))
     .filter((r) => r.rank >= 1 && r.rank <= 3 && r.count && r.students.length)
     .sort((a, b) => a.rank - b.rank);
-  return { today: clean(raw.today), week: clean(raw.week) };
+  // [V8] ALL LEARNERS: TOP 3 밖의 나머지 참여자 (API가 정렬·제외 규칙 적용, 화면은 순서 그대로 · 순위 번호 없음)
+  const learners = (p) => (Array.isArray(p && p.learners) ? p.learners : [])
+    .map((l) => ({ student: maskName(l && l.student), count: toCount(l && l.count) }))
+    .filter((l) => l.student && l.count >= 1);
+  return { today: clean(raw.today), week: clean(raw.week), learners: { today: learners(raw.today), week: learners(raw.week) } };
 }
 
 /** [DETAILS] API details → 화면용 (허용된 필드만: 마스킹 이름 / 교재 / Day·Unit / 시간 / 학생별 PASS 횟수)
@@ -610,6 +614,8 @@ function setLeaderPeriod(period) {
   renderLeaders(state.data);
   overallView.renderedKey = "";
   renderOverall(state.data);
+  $("#leaderPanel").scrollLeft = 0; // [V9] 모바일 carousel: 기간을 바꾸면 첫 카드(TEST LEADERS)로
+  syncLeaderDots();
 }
 
 /* ---------- [V6] 전체 단어장 TEST LEADERS / DRILL LEADERS ----------
@@ -631,7 +637,7 @@ function renderOverall(data) {
     overallView.renderedKey = "";
     return;
   }
-  const key = period + JSON.stringify(OVERALL_BOARDS.map((b) => data[b.field] && data[b.field][period]));
+  const key = period + JSON.stringify(OVERALL_BOARDS.map((b) => data[b.field] && [data[b.field][period], data[b.field].learners[period]]));
   if (key === overallView.renderedKey) return; // 변화 없음 → DOM 그대로
   const samePeriod = overallView.renderedKey.startsWith(period);
   overallView.renderedKey = key;
@@ -666,6 +672,29 @@ function renderOverall(data) {
     card.dataset.sig = sig;
     // 같은 탭에서 순위가 바뀌면 짧은 glow (첫 표시/탭 전환 시에는 없음)
     if (samePeriod && prev && prev !== sig && ranks.length) playOnce(card, ["ld-up"], 1700);
+
+    // [V8] ALL LEARNERS — TOP 3 아래 나머지 참여자 전원 (메달·순위 번호 없음). 없으면 영역 숨김
+    const learners = (data[b.field] && data[b.field].learners[period]) || [];
+    const lsig = period + JSON.stringify(learners);
+    if (card.dataset.lsig !== lsig) {
+      card.querySelector(".ld-all-list").replaceChildren(...learners.map((l) => {
+        const row = document.createElement("li");
+        row.className = "ld-all-row";
+        row.setAttribute("aria-label", `${l.student}, ${l.count} ${b.word(l.count)}`);
+        row.innerHTML = '<span class="ld-all-name"></span><span class="ld-all-count" aria-hidden="true"><strong></strong><small></small></span>';
+        row.querySelector(".ld-all-name").textContent = l.student;
+        row.querySelector(".ld-all-count strong").textContent = l.count.toLocaleString("ko-KR");
+        row.querySelector(".ld-all-count small").textContent = b.word(l.count);
+        return row;
+      }));
+      card.querySelector(".ld-all").hidden = learners.length === 0;
+      // [V9] 모바일: 카드에는 앞의 MOBILE_LEARNERS_VISIBLE명만(CSS), 더 있으면 "모두 보기" → 기존 상세 모달 (데스크톱은 CSS로 숨김)
+      const more = card.querySelector(".ld-all-more");
+      more.hidden = learners.length <= MOBILE_LEARNERS_VISIBLE;
+      more.textContent = `전체 ${learners.length}명 · 모두 보기 ›`;
+      if (!card.dataset.lsig || !card.dataset.lsig.startsWith(period)) card.querySelector(".ld-all-list").scrollTop = 0; // 탭 전환 시 맨 위부터
+      card.dataset.lsig = lsig;
+    }
   }
 }
 
@@ -689,6 +718,73 @@ function renderDrillStat(value) {
   drillView.value = value;
 }
 
+/* ---------- [V9] 모바일(≤599px) LEADERS carousel ----------
+   가로 스와이프·스냅은 CSS(scroll-snap)가 담당: TEST → DRILL → 단어장별 카드.
+   JS는 아래 위치 점(pagination)과 "모두 보기"만. 데스크톱에서는 아무것도 하지 않음 */
+const MOBILE_LEARNERS_VISIBLE = 5; // 모바일 카드 안 ALL LEARNERS 줄 수 (style.css의 nth-child(n + 6)과 같이 바꿀 것)
+const leaderCarousel = { mq: window.matchMedia("(max-width: 599px)"), count: -1, active: -1, raf: 0 };
+
+function leaderCards() {
+  return [...document.querySelectorAll("#overallBoard:not([hidden]) > .leader, #leaderList > .leader, #leaderEmpty:not([hidden])")];
+}
+
+function scrollToLeaderCard(i) {
+  const panel = $("#leaderPanel");
+  const card = leaderCards()[i];
+  if (!card) return;
+  const pad = parseFloat(getComputedStyle(panel).paddingLeft) || 0;
+  // 절대 위치로 이동 (scrollBy는 scroll-snap-stop:always 때문에 한 칸씩만 넘어가서 여러 칸 떨어진 점을 누르면 중간에 멈춤)
+  const target = panel.scrollLeft + card.getBoundingClientRect().left - panel.getBoundingClientRect().left - pad;
+  panel.scrollTo({ left: target, behavior: reduceMotion.matches ? "auto" : "smooth" });
+}
+
+function syncLeaderDots() {
+  const dots = $("#leaderDots");
+  if (!leaderCarousel.mq.matches) {
+    if (dots.childElementCount) dots.replaceChildren();
+    leaderCarousel.count = -1;
+    return;
+  }
+  const cards = leaderCards();
+  if (cards.length !== leaderCarousel.count) {
+    leaderCarousel.count = cards.length;
+    leaderCarousel.active = -1;
+    dots.replaceChildren(...cards.map((_, i) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "leader-dot";
+      b.setAttribute("aria-label", `${i + 1} / ${cards.length}`);
+      b.addEventListener("click", () => scrollToLeaderCard(i));
+      return b;
+    }));
+  }
+  // 지금 보이는 카드 = 왼쪽 끝이 carousel 왼쪽에 가장 가까운 카드
+  const left = $("#leaderPanel").getBoundingClientRect().left;
+  let idx = -1, best = Infinity;
+  cards.forEach((c, i) => { const d = Math.abs(c.getBoundingClientRect().left - left); if (d < best) { best = d; idx = i; } });
+  if (idx !== leaderCarousel.active) {
+    leaderCarousel.active = idx;
+    [...dots.children].forEach((d, i) => {
+      d.classList.toggle("is-active", i === idx);
+      if (i === idx) d.setAttribute("aria-current", "true"); else d.removeAttribute("aria-current");
+    });
+  }
+}
+
+function initLeaderCarousel() {
+  $("#leaderPanel").addEventListener("scroll", () => {
+    cancelAnimationFrame(leaderCarousel.raf);
+    leaderCarousel.raf = requestAnimationFrame(syncLeaderDots);
+  }, { passive: true });
+  leaderCarousel.mq.addEventListener("change", () => {
+    $("#leaderPanel").scrollLeft = 0;
+    syncLeaderDots();
+  });
+  document.querySelectorAll(".ld-all-more").forEach((btn) => {
+    btn.addEventListener("click", () => openDetail(btn.closest("#testLeaders") ? "testLearners" : "drillLearners", btn));
+  });
+}
+
 function initLeaders() {
   document.querySelectorAll(".leader-tab").forEach((tab) => {
     tab.addEventListener("click", () => setLeaderPeriod(tab.dataset.period));
@@ -709,7 +805,11 @@ const DETAIL_KINDS = {
   completed: { title: "오늘 완료된 학습", en: "COMPLETED TODAY",  unit: "개", icon: "#i-book",  list: (d) => d.completed, tag: "완료" },
   retry:     { title: "오늘 재학습",      en: "RETRY TODAY",      unit: "개", icon: "#i-retry", list: (d) => d.retries,   tag: "RETRY" },
   drill:     { title: "오늘 DRILL 완료",  en: "DRILL COMPLETED",  unit: "세트", icon: "#i-book", list: (d) => d.drills }, // [V7] 태그 자리에 SET n/m
+  // [V9] 모바일 ALL LEARNERS "모두 보기": TOP 3 밖 참여자 전원 (지금 보고 있는 TODAY/WEEKLY, API learners 그대로 · 순위 번호 없음)
+  testLearners:  { title: () => `TEST ${leaderPeriodKo()} 참여 기록`,  en: "ALL LEARNERS", unit: "명", icon: "#i-star", source: (data) => (data && data.testLeaders ? data.testLeaders.learners[leaderView.period] : null),   word: (n) => (n === 1 ? "UNIT" : "UNITS") },
+  drillLearners: { title: () => `DRILL ${leaderPeriodKo()} 참여 기록`, en: "ALL LEARNERS", unit: "명", icon: "#i-book", source: (data) => (data && data.drillLeaders ? data.drillLeaders.learners[leaderView.period] : null), word: (n) => (n === 1 ? "SET" : "SETS") },
 };
+const leaderPeriodKo = () => (leaderView.period === "week" ? "이번 주" : "오늘");
 const detailView = { kind: null, returnFocus: null };
 
 function openDetail(kind, trigger) {
@@ -720,7 +820,7 @@ function openDetail(kind, trigger) {
   const modal = $("#detailModal");
   modal.querySelector(".dm-panel").dataset.kind = kind;
   $("#dmIcon").setAttribute("href", k.icon);
-  $("#dmTitle").textContent = k.title;
+  $("#dmTitle").textContent = typeof k.title === "function" ? k.title() : k.title;
   $("#dmEn").textContent = k.en;
   $("#dmUnit").textContent = k.unit;
   $("#dmSearch").value = "";
@@ -745,19 +845,22 @@ function renderDetail() {
   if (!kind) return;
   const k = DETAIL_KINDS[kind];
   const statKey = { learners: "learners", pass: "pass", completed: "completed", retry: "retry" }[kind];
-  const count = kind === "drill" ? drillView.value : state.stats[statKey]; // [V7] DRILL은 상단 카드와 같은 stats.drill
+  const details = state.data && state.data.details;
+  // [V9] ALL LEARNERS(모바일 "모두 보기")는 details가 아니라 지금 기간의 learners 목록
+  const list = k.source ? k.source(state.data) : details ? k.list(details) : null; // DRILL 목록은 옛 API에는 없음(null)
+  const count = kind === "drill" ? drillView.value : k.source ? (list ? list.length : null) : state.stats[statKey]; // [V7] DRILL은 상단 카드와 같은 stats.drill
   $("#dmCount").textContent = count == null ? "–" : count.toLocaleString("ko-KR");
 
-  const details = state.data && state.data.details;
-  const list = details ? k.list(details) : null; // DRILL 목록은 옛 API에는 없음(null)
   const all = list || [];
   const q = kind === "retry" ? "" : $("#dmSearch").value.trim();
   const plain = (s) => s.replace(/[○\s]/g, "");
   const items = q ? all.filter((it) => it.student.includes(q) || plain(it.student).includes(plain(q))) : all;
 
+  const per = k.source ? "명" : "건";
+  const since = k.source && leaderView.period === "week" ? "이번 주 월요일부터" : "오늘 00:00 이후";
   $("#dmMeta").textContent = !list
     ? "상세 기록을 불러오는 중입니다."
-    : q ? `검색 결과 ${items.length}건 / 전체 ${all.length}건` : `전체 ${all.length}건 · 오늘 00:00 이후 (한국 시간)`;
+    : q ? `검색 결과 ${items.length}${per} / 전체 ${all.length}${per}` : `전체 ${all.length}${per} · ${since} (한국 시간)`;
 
   // TOP 3 메달: API가 보낸 정렬 그대로, PASS 횟수(1회 이상) 기준 dense rank — 동점은 같은 메달
   const topPass = kind === "learners" ? topPassValues(all) : [];
@@ -771,6 +874,14 @@ function renderDetail() {
       li.querySelector(".dm-medal").textContent = MEDALS[rank];
       li.querySelector(".dm-name").textContent = it.student;
       li.querySelector(".dm-pill").textContent = it.pass >= 1 ? `PASS ${it.pass}회` : "도전 중";
+    } else if (k.source) {
+      // [V9] ALL LEARNERS: 오늘 학습 참여 목록과 같은 줄 모양, 메달·순위 번호 없음
+      li.className = "dm-row dm-learner";
+      li.innerHTML = '<span class="dm-medal" aria-hidden="true"></span><span class="dm-name"></span><span class="dm-pills"><span class="dm-pill"></span></span>';
+      li.querySelector(".dm-name").textContent = it.student;
+      const pill = li.querySelector(".dm-pill");
+      pill.classList.add(kind === "testLearners" ? "is-pass" : "is-drill");
+      pill.textContent = `${it.count.toLocaleString("ko-KR")} ${k.word(it.count)}`;
     } else if (kind === "retry") {
       li.className = "dm-row dm-record is-anon"; // 학생 정보 없음
       li.innerHTML = '<time class="dm-time"></time><span class="dm-course"></span><span class="dm-tag"></span>';
@@ -878,6 +989,7 @@ function applyData(data) {
   renderTicker(data);
   renderLeaders(data);
   renderOverall(data); // [V6]
+  syncLeaderDots(); // [V9] 모바일 carousel 위치 점 (카드 수가 바뀌면 다시 만듦)
   renderDetail();
   state.firstRender = false;
 }
@@ -961,6 +1073,7 @@ function init() {
   tickClock();
   setInterval(tickClock, 1000);
   initLeaders();
+  initLeaderCarousel(); // [V9]
   initDetails();
   if (DEMO_MODE) {
     // DEMO: 고정 데이터 1회 표시 (데이터가 바뀌지 않으므로 반복 호출 없음)

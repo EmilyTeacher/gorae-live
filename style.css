@@ -1313,6 +1313,44 @@ svg, img { display: block; }
 .ld-empty { padding: 12px 4px 6px; text-align: center; font-size: 0.9rem; color: var(--ink-3); }
 .ld-empty[hidden] { display: none; }
 
+/* [V8] ALL LEARNERS — TOP 3 아래 나머지 참여자 (메달·순위 번호 없는 compact row)
+   많으면 이 목록만 카드 안에서 스크롤 (약 6.5줄 높이) */
+.ld-all { margin-top: 6px; padding-top: 8px; border-top: 1px solid rgb(var(--acc) / 0.3); }
+.ld-all[hidden] { display: none; }
+.ld-all-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 0 8px 4px;
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
+  color: rgb(var(--acc) / 0.95);
+}
+.ld-all-head span { font-family: var(--font-body); font-weight: 600; font-size: 0.76rem; letter-spacing: 0; color: var(--ink-3); }
+.ld-all-list {
+  max-height: 13.1rem; /* 약 6.5줄: 7번째 줄이 반쯤 보여 아래로 더 있음을 알려줌 (LIVE FEED와 같은 방식) */
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--acc) / 0.45) transparent;
+}
+.ld-all-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 5px 8px;
+  border-top: 1px solid rgba(130, 165, 255, 0.08);
+  font-size: 0.92rem;
+}
+.ld-all-row:first-child { border-top: 0; }
+.ld-all-name { min-width: 0; font-weight: 600; color: #dfe7fb; overflow-wrap: anywhere; }
+.ld-all-count { display: flex; align-items: baseline; gap: 3px; white-space: nowrap; }
+.ld-all-count strong { font-weight: 800; font-size: 1rem; line-height: 1; font-variant-numeric: tabular-nums; color: rgb(var(--acc)); }
+.ld-all-count small { font-family: var(--font-display); font-size: 0.6rem; font-weight: 600; letter-spacing: 0.1em; color: rgb(var(--acc) / 0.8); }
+
 /* 기존 단어장별 랭킹 구분 제목 */
 .leader-section {
   display: flex;
@@ -1336,6 +1374,79 @@ svg, img { display: block; }
 @media (min-width: 1100px) {
   .overall-board { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.7rem 0.9rem; }
   .leader-section { margin-top: 1.3rem; }
+}
+
+/* ---------- [V9] 모바일(≤599px) LEADERS carousel ----------
+   TEST → DRILL → 단어장별 카드를 세로로 쌓지 않고 가로 스와이프 (CSS scroll-snap, 라이브러리 없음)
+   카드 폭 90% → 오른쪽에 다음 카드가 살짝 보임(peek), 아래 점으로 위치 표시. 데스크톱·태블릿은 기존 그대로 */
+.ld-all-more { display: none; }
+.leader-dots { display: none; }
+@media (max-width: 599px) {
+  .leader-panel {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin: -8px -4px 0;
+    padding: 8px 4px 10px; /* 카드 glow가 잘리지 않게 */
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 4px;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+  .leader-panel::-webkit-scrollbar { display: none; }
+  .overall-board, .leader-list { display: contents; } /* 카드들을 한 줄의 carousel 항목으로 */
+  .leader-section { display: none; } /* 단어장별 카드 안의 작은 머리말로 대신 표시 */
+  .overall-board > .leader,
+  .leader-list > .leader,
+  .leader-panel > .leader-empty {
+    flex: 0 0 90%;
+    min-width: 0;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+  }
+  .leader-list > .leader::before {
+    content: "BY WORDBOOK · 단어장별 TEST";
+    padding: 0 2px 2px;
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: 0.66rem;
+    letter-spacing: 0.14em;
+    color: #9fb4e0;
+  }
+  /* 카드 안 세로 스크롤 없음: 앞의 5명만, 나머지는 "모두 보기" → 기존 상세 모달 (app.js MOBILE_LEARNERS_VISIBLE과 같이 바꿀 것) */
+  .ld-all-list { max-height: none; overflow: visible; }
+  .ld-all-row:nth-child(n + 6) { display: none; }
+  .ld-all-more:not([hidden]) {
+    display: block;
+    width: 100%;
+    margin-top: 6px;
+    padding: 7px 10px;
+    border: 1px solid rgb(var(--acc) / 0.45);
+    border-radius: 10px;
+    background: rgb(var(--acc) / 0.08);
+    color: #eef3ff;
+    font: inherit;
+    font-size: 0.84rem;
+    font-weight: 700;
+    text-align: center;
+    cursor: pointer;
+  }
+  .ld-all-more:focus-visible { outline: 2px solid rgb(var(--acc) / 0.9); outline-offset: 2px; }
+  .leader-dots { display: flex; justify-content: center; align-items: center; gap: 7px; margin-top: 2px; }
+  .leader-dot {
+    width: 7px;
+    height: 7px;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: rgba(130, 165, 255, 0.35);
+    cursor: pointer;
+    transition: width 0.2s ease, background 0.2s ease;
+  }
+  .leader-dot.is-active { width: 18px; background: #7fe3ff; box-shadow: 0 0 8px rgba(80, 200, 255, 0.7); }
+  .leaders:has(.leader-tab[data-period="week"][aria-selected="true"]) .leader-dot.is-active { background: #c2a9ff; box-shadow: 0 0 8px rgba(168, 128, 255, 0.7); }
 }
 
 /* ---------- 모바일 LIVE FEED MORE / LESS ---------- */
@@ -1432,6 +1543,8 @@ html.dm-open { overflow: hidden; }
 .dm-panel[data-kind="completed"] { --c: var(--violet); }
 .dm-panel[data-kind="retry"] { --c: var(--gold); }
 .dm-panel[data-kind="drill"] { --c: var(--violet); } /* [V7] 상단 DRILL 카드(lavender)와 같은 색 */
+.dm-panel[data-kind="testLearners"] { --c: var(--cyan); }    /* [V9] ALL LEARNERS 모두 보기 — TEST LEADERS 카드 색 */
+.dm-panel[data-kind="drillLearners"] { --c: var(--violet); } /* [V9] — DRILL LEADERS 카드 색 */
 @keyframes dm-in { from { opacity: 0; transform: translateY(10px) scale(0.98); } to { opacity: 1; transform: none; } }
 
 .dm-head {
@@ -1526,6 +1639,7 @@ html.dm-open { overflow: hidden; }
   white-space: nowrap;
 }
 .dm-pill.is-pass { border-color: rgb(var(--cyan) / 0.6); color: #a8f3ea; }
+.dm-pill.is-drill { border-color: rgb(var(--violet) / 0.6); color: #d6c6ff; } /* [V9] */
 /* RETRY 기록: 이름 칸 없이 시간 | 교재·단원 | RETRY */
 .dm-record.is-anon { grid-template-columns: 3.2em minmax(0, 1fr) auto; grid-template-areas: "time course tag"; }
 .dm-empty { padding: 20px 0 12px; text-align: center; color: var(--ink-3); }
