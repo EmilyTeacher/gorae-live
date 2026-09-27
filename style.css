@@ -1070,7 +1070,8 @@ svg, img { display: block; }
 /* 기간 탭: 게임 모드 선택 버튼 (TODAY = cyan / WEEKLY = violet) */
 .leader-tabs {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-auto-flow: column;   /* [V10] DAILY / WEEKLY / MONTHLY (MONTHLY는 새 API가 있을 때만) */
+  grid-auto-columns: minmax(0, 1fr);
   gap: 8px;
   margin: 0 2px 14px;
 }
@@ -1166,6 +1167,7 @@ svg, img { display: block; }
   color: #7fe3ff;
 }
 .leaders:has(.leader-tab[data-period="week"][aria-selected="true"]) .ld-course::after { content: "WEEKLY"; color: #c2a9ff; }
+.leaders:has(.leader-tab[data-period="month"][aria-selected="true"]) .ld-course::after { content: "MONTHLY"; color: #ff9ecb; }
 
 /* 순위 줄: 배지 | 이름(줄바꿈) | 단원 수 */
 .ld-ranks { display: grid; gap: 0; }
@@ -1252,7 +1254,7 @@ svg, img { display: block; }
   color: rgb(var(--medal));
   text-shadow: 0 0 10px rgb(var(--medal) / 0.4);
 }
-.ld-rank.r1 .ld-count strong { font-size: 1.75rem; }
+.ld-rank.r1 .ld-count strong { font-size: 1.55rem; } /* [V10] 1위만 너무 크지 않게 */
 .ld-count small {
   font-family: var(--font-display);
   font-size: 0.66rem;
@@ -1276,7 +1278,7 @@ svg, img { display: block; }
   .ld-names { font-size: 1.04rem; }
   .ld-rank.r1 .ld-names { font-size: 1.2rem; }
   .ld-count strong { font-size: 1.4rem; }
-  .ld-rank.r1 .ld-count strong { font-size: 1.9rem; }
+  .ld-rank.r1 .ld-count strong { font-size: 1.65rem; }
 }
 
 /* ---------- [V6] 전체 단어장 합산: TEST LEADERS(cyan, UNITS) / DRILL LEADERS(violet, SETS) ----------
@@ -1486,7 +1488,7 @@ svg, img { display: block; }
     scrollbar-color: rgb(var(--blue) / 0.45) transparent;
   }
   .leaders-head .head-sub { flex-basis: auto; padding-left: 0; }
-  .leader-tabs { grid-template-columns: repeat(2, minmax(0, 16rem)); margin-bottom: 1rem; }
+  .leader-tabs { grid-auto-columns: minmax(0, 14rem); justify-content: start; margin-bottom: 1rem; }
   .leader-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.7rem 0.9rem; }
 }
 
@@ -1747,57 +1749,215 @@ html.dm-open { overflow: hidden; }
 .dm-learner.is-top .dm-name { font-weight: 800; }
 .dm-learner.r1 .dm-pill { border-color: rgb(var(--gold) / 0.7); color: #ffe39a; box-shadow: 0 0 8px rgb(var(--gold) / 0.3); }
 
-/* NOW LEARNING — PASS RACE 아래 컴팩트 LIVE 패널 (GORAE LEARNING LAB 공개 API, 지금 공부 중인 student) */
+/* =====================================================================
+   [V10] 학생용 흐름: ① NOW LEARNING → ② JUST COMPLETED DRILL → ③ JUST PASSED TEST / LIVE FEED → ④ PASS RACE · LEADERS
+   색 규칙은 기존 그대로: DRILL = violet, TEST = cyan/mint, PASS 배지 = pink(100% PASS와 같은 계열)
+   ===================================================================== */
+
+/* ---------- ① NOW LEARNING — 이름 + DRILL/TEST/GRAMMAR, 한 줄에 다 안 들어가면 가로로 계속 흐름 ---------- */
 .now {
   position: relative;
   z-index: 2;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  gap: 8px 16px;
+  gap: 8px 18px;
   padding: 10px 14px;
-  border: 1px solid rgb(var(--cyan) / 0.38);
+  border: 1px solid rgb(var(--cyan) / 0.45);
   border-radius: var(--radius);
-  background: rgba(8, 16, 38, 0.6);
-  box-shadow: 0 0 14px rgb(var(--cyan) / 0.08);
+  background: linear-gradient(90deg, rgb(var(--cyan) / 0.1), rgba(8, 16, 38, 0.72) 45%);
+  box-shadow: 0 0 18px rgb(var(--cyan) / 0.14), inset 0 0 16px rgb(var(--cyan) / 0.06);
 }
-.now[hidden], .now-list[hidden] { display: none; }
+.now[hidden], .now-viewport[hidden] { display: none; }
 .now-head { min-width: 0; }
-.now-title { display: flex; align-items: center; gap: 7px; font-family: "Oswald", sans-serif; font-size: 0.95rem; font-weight: 600; letter-spacing: 0.08em; color: rgb(var(--cyan)); white-space: nowrap; }
-.now-sub { margin-top: 2px; font-size: 0.8rem; font-weight: 600; color: #b9c6e6; white-space: nowrap; }
-.now-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: rgb(var(--cyan)); animation: now-pulse 1.8s ease-out infinite; }
-.now[data-state="empty"] { grid-template-columns: minmax(0, 1fr); border-color: var(--line-2); box-shadow: none; }
+.now-title { display: flex; align-items: center; gap: 8px; font-family: "Oswald", sans-serif; font-weight: 600; font-size: 1.15rem; letter-spacing: 0.1em; color: rgb(var(--cyan)); white-space: nowrap; text-shadow: 0 0 10px rgb(var(--cyan) / 0.5); }
+.now-sub { margin-top: 2px; font-size: 0.82rem; font-weight: 700; color: #d9f7f3; white-space: nowrap; }
+.now-dot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: rgb(var(--cyan)); animation: now-pulse 1.8s ease-out infinite; }
+.now[data-state="empty"] { grid-template-columns: minmax(0, 1fr); border-color: var(--line-2); background: rgba(8, 16, 38, 0.6); box-shadow: none; }
 .now[data-state="empty"] .now-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 14px; }
-.now[data-state="empty"] .now-title { color: #8fa3cc; }
+.now[data-state="empty"] .now-title { color: #8fa3cc; text-shadow: none; }
 .now[data-state="empty"] .now-dot { background: #5d6f95; animation: none; }
-.now[data-state="empty"] .now-sub { margin-top: 0; white-space: normal; }
-.now-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px 8px; max-height: 5.9rem; overflow-y: auto; }
+.now[data-state="empty"] .now-sub { margin-top: 0; white-space: normal; color: #b9c6e6; font-weight: 600; }
+.now-viewport { min-width: 0; overflow: hidden; }
+.now-viewport:has(> .now-list.is-flowing) {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 18px, #000 calc(100% - 28px), transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 18px, #000 calc(100% - 28px), transparent);
+}
+.now-list { display: flex; width: max-content; }
 .now-row {
   --m: var(--blue);
-  display: flex;
+  flex: none;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
-  min-width: 0;
-  padding: 5px 10px;
-  border: 1px solid rgb(var(--m) / 0.42);
-  border-radius: 10px;
-  background: linear-gradient(90deg, rgb(var(--m) / 0.13), transparent 80%);
-  animation: now-in 0.4s ease-out;
+  margin-right: 8px;
+  padding: 6px 13px;
+  border: 1px solid rgb(var(--m) / 0.55);
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgb(var(--m) / 0.18), rgba(8, 16, 38, 0.6));
+  white-space: nowrap;
 }
-.now-row.now-drill { --m: var(--cyan); }
-.now-row.now-test { --m: var(--blue); }
-.now-row.now-grammar { --m: var(--violet); }
-.now-pip { flex: none; width: 6px; height: 6px; border-radius: 50%; background: rgb(var(--m)); box-shadow: 0 0 6px rgb(var(--m) / 0.9); animation: now-blink 1.6s ease-in-out infinite; }
-.now-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; color: #fff; }
-.now-area { flex: none; font-family: "Oswald", sans-serif; font-size: 0.78rem; font-weight: 600; letter-spacing: 0.06em; color: rgb(var(--m)); }
-@keyframes now-pulse { 0% { box-shadow: 0 0 0 0 rgb(var(--cyan) / 0.55); } 100% { box-shadow: 0 0 0 8px rgb(var(--cyan) / 0); } }
+.now-row.now-drill { --m: var(--violet); }
+.now-row.now-test { --m: var(--cyan); }
+.now-row.now-grammar { --m: 255 110 180; }
+.now-pip { flex: none; width: 7px; height: 7px; border-radius: 50%; background: rgb(var(--m)); box-shadow: 0 0 8px rgb(var(--m)); animation: now-blink 1.6s ease-in-out infinite; }
+.now-name { font-weight: 800; font-size: 1.02rem; color: #fff; }
+.now-area { font-family: "Oswald", sans-serif; font-weight: 600; font-size: 0.82rem; letter-spacing: 0.08em; color: rgb(var(--m)); }
+.now-detail { font-size: 0.86rem; color: #dfe7fb; }
+.now-list.is-flowing { animation: now-flow var(--now-duration, 20s) linear infinite; }
+.now-viewport:hover .now-list.is-flowing { animation-play-state: paused; }
+@keyframes now-flow { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@keyframes now-pulse { 0% { box-shadow: 0 0 0 0 rgb(var(--cyan) / 0.55); } 100% { box-shadow: 0 0 0 9px rgb(var(--cyan) / 0); } }
 @keyframes now-blink { 50% { opacity: 0.35; } }
-@keyframes now-in { from { opacity: 0; transform: translateY(3px); } }
 @media (max-width: 599px) {
-  .now { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .now { grid-template-columns: minmax(0, 1fr); gap: 8px; padding: 10px 12px; }
   .now-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-  .now-list { grid-template-columns: minmax(0, 1fr); max-height: 9.4rem; }
+  .now-title { font-size: 1.05rem; }
 }
+@media (min-width: 1100px) {
+  .now { padding: 0.7rem 1.1rem; }
+  .now-title { font-size: 1.35rem; }
+  .now-name { font-size: 1.1rem; }
+}
+
+/* ---------- 기간 탭 DAILY / WEEKLY / MONTHLY (KST) ---------- */
+.period-bar { position: relative; z-index: 2; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px 12px; }
+.period-tabs { display: inline-flex; gap: 2px; padding: 3px; border: 1px solid var(--line-2); border-radius: 999px; background: rgba(6, 13, 34, 0.82); box-shadow: 0 0 14px rgba(40, 90, 200, 0.15); }
+.period-tab {
+  --tab: var(--blue);
+  min-width: 5.4rem;
+  padding: 7px 16px 6px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: #8fa3cc;
+  font-family: "Oswald", sans-serif;
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+.period-tab[hidden] { display: none; }
+.period-tab[data-period="week"] { --tab: var(--violet); }
+.period-tab[data-period="month"] { --tab: 255 110 180; }
+.period-tab[aria-selected="true"] {
+  color: #fff;
+  background: linear-gradient(180deg, rgb(var(--tab) / 0.85), rgb(var(--tab) / 0.45));
+  box-shadow: 0 0 14px rgb(var(--tab) / 0.5), inset 0 0 8px rgba(255, 255, 255, 0.12);
+  text-shadow: 0 0 8px rgb(var(--tab) / 0.8);
+}
+.period-tab:focus-visible { outline: 2px solid rgb(var(--cyan) / 0.8); outline-offset: 2px; }
+.period-event { padding: 3px 11px 2px; border: 1px solid rgb(var(--gold) / 0.55); border-radius: 999px; background: rgb(var(--gold) / 0.1); font-family: "Oswald", sans-serif; font-weight: 600; font-size: 0.72rem; letter-spacing: 0.12em; color: #ffd98a; }
+.period-event[hidden] { display: none; }
+@media (min-width: 1100px) { .period-tab { font-size: 1rem; padding: 0.45rem 1.3rem 0.4rem; } }
+
+/* ---------- 통계는 보조 정보: 작은 카드 3개 (DRILL → TEST PASS → 학습 학생) ---------- */
+.stats.stats--compact { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.stats--compact .stat { padding: 8px 6px 7px; border-width: 1px; box-shadow: 0 0 10px rgb(var(--c) / 0.18), inset 0 0 14px rgb(var(--c) / 0.08); }
+.stats--compact .stat-top { gap: 6px; }
+.stats--compact .stat-icon svg { width: 18px; height: 18px; }
+.stats--compact .stat-num { font-size: 1.45rem; }
+.stats--compact .stat-num small { font-size: 0.72rem; }
+.stats--compact .stat-ko { margin-top: 4px; font-size: 0.74rem; }
+.stats--compact .stat-en { margin-top: 1px; font-size: 0.5rem; letter-spacing: 0.14em; }
+.stat[data-detail].is-static { cursor: default; }
+.stat[data-detail].is-static:hover { transform: none; box-shadow: 0 0 10px rgb(var(--c) / 0.18), inset 0 0 14px rgb(var(--c) / 0.08); }
+@media (min-width: 900px) {
+  .stats.stats--compact { gap: 12px; }
+  .stats--compact .stat {
+    display: grid;
+    grid-template-columns: auto auto;
+    grid-template-areas: "top ko" "top en";
+    justify-content: center;
+    align-items: center;
+    column-gap: 14px;
+    padding: 0.55rem 1rem;
+    text-align: left;
+  }
+  .stats--compact .stat-top { grid-area: top; }
+  .stats--compact .stat-ko { grid-area: ko; align-self: end; margin-top: 0; font-size: 0.92rem; }
+  .stats--compact .stat-en { grid-area: en; align-self: start; padding-left: 0; font-size: 0.58rem; }
+  .stats--compact .stat-icon svg { width: 1.5rem; height: 1.5rem; }
+  .stats--compact .stat-num { font-size: 1.9rem; }
+  .stats--compact .stat-num small { font-size: 0.85rem; }
+}
+
+/* ---------- ② JUST COMPLETED DRILL (violet) ---------- */
+.jd { border-color: rgb(var(--violet) / 0.4); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 0 26px rgb(var(--violet) / 0.12); }
+.head-icon.drill-ic { color: rgb(var(--violet)); filter: drop-shadow(0 0 6px rgb(var(--violet) / 0.7)); }
+.jd-list {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(9.5rem, 54%);
+  gap: 10px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+.jd-list::-webkit-scrollbar { display: none; }
+.jd-card {
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 12px 12px 10px;
+  border: 1px solid rgb(var(--violet) / 0.45);
+  border-radius: 14px;
+  background: linear-gradient(165deg, rgb(var(--violet) / 0.16), rgba(8, 16, 40, 0.88) 70%);
+  box-shadow: inset 0 0 18px rgb(var(--violet) / 0.08);
+}
+.jd-top { display: flex; align-items: center; gap: 10px; }
+.jd-top .avatar { width: 38px; height: 38px; }
+.jd-meta { min-width: 0; }
+.jd-time { font-size: 0.8rem; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.jd-name { font-size: 1.1rem; font-weight: 800; line-height: 1.2; color: #fff; }
+.jd-course { flex: 1; margin-top: 8px; font-size: 0.86rem; line-height: 1.35; color: #dfe7fb; word-break: keep-all; }
+.jd-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 6px; margin-top: 10px; }
+.jd-done {
+  padding: 3px 10px 2px;
+  white-space: nowrap;
+  border: 1.5px solid rgb(var(--violet) / 0.9);
+  border-radius: 8px;
+  font-family: "Oswald", sans-serif;
+  font-weight: 600;
+  font-size: 0.9rem;
+  letter-spacing: 0.04em;
+  color: #f0e9ff;
+  box-shadow: 0 0 10px rgb(var(--violet) / 0.35), inset 0 0 8px rgb(var(--violet) / 0.2);
+}
+.jd-set { white-space: nowrap; font-family: "Oswald", sans-serif; font-size: 0.72rem; letter-spacing: 0.08em; color: rgb(var(--violet) / 0.95); }
+.jd-empty { padding: 10px 0 6px; text-align: center; color: var(--ink-3); }
+.jd-empty[hidden] { display: none; }
+.jd-card.anim-in { animation: row-in 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@media (min-width: 600px) { .jd-list { grid-auto-columns: minmax(10rem, 30%); } }
+@media (min-width: 1100px) {
+  .jd-list { grid-auto-flow: row; grid-template-columns: repeat(5, minmax(0, 1fr)); overflow: visible; }
+  .jd-card { padding: 0.8rem 0.9rem 0.75rem; }
+}
+
+/* ---------- ③ LIVE FEED 배지: DRILL(violet) / PASS(pink) ---------- */
+.pass-chip.is-drill { border-color: rgb(var(--violet) / 0.9); background: rgb(var(--violet) / 0.16); color: #efe8ff; box-shadow: 0 0 10px rgb(var(--violet) / 0.35); }
+.pass-chip.is-pass { border-color: rgba(255, 74, 110, 0.9); background: rgba(255, 74, 110, 0.14); color: #ffe3ea; box-shadow: 0 0 10px rgba(255, 74, 110, 0.32); }
+.tk-drill { color: #fff; }
+.tk-drill b { font-weight: 600; color: #c9b6ff; }
+
+/* ---------- ④ LEADERS: 4·5위는 메달 없이 번호 — 2·3위와 같은 크기로 잘 보이게 ---------- */
+.ld-rank.r4, .ld-rank.r5 { --medal: 150 185 240; --medal-deep: 90 120 180; }
+.ld-rank.r4 .ld-medal, .ld-rank.r5 .ld-medal { padding-top: 0; color: #dfe9ff; filter: none; }
+.ld-rank.r4 .ld-medal::before, .ld-rank.r5 .ld-medal::before { display: none; }
+.ld-rank.r4 .ld-medal::after, .ld-rank.r5 .ld-medal::after { inset: 5px 3px; clip-path: none; border-radius: 50%; border: 1.5px solid rgb(var(--medal) / 0.6); background: rgb(var(--medal) / 0.14); }
+.ld-rank.r4 .ld-count strong, .ld-rank.r5 .ld-count strong { color: #dfe9ff; text-shadow: none; }
+.leader-tab[hidden] { display: none; }
+.leader-tab[data-period="month"][aria-selected="true"] { --tab: 255 110 180; }
+.leader-tab[data-period="month"][aria-selected="true"] span { color: #ffc4e0; }
+@media (max-width: 599px) {
+  .leader-tab strong { font-size: 0.86rem; letter-spacing: 0.04em; }
+  .leaders:has(.leader-tab[data-period="month"][aria-selected="true"]) .leader-dot.is-active { background: #ff9ecb; box-shadow: 0 0 8px rgba(255, 110, 180, 0.7); }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .now-dot, .now-pip, .now-row { animation: none; }
+  .now-dot, .now-pip { animation: none; }
+  .now-viewport { overflow-x: auto; }
 }

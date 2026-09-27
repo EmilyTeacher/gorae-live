@@ -30,6 +30,9 @@ const FETCH_TIMEOUT_MS = 10000;    // 응답이 이보다 늦으면 실패로 �
 const FEED_MAX = 10;               // LIVE FEED에 표시할 최대 줄 수 (latest 포함, 최신순)
 const FEED_MOBILE_COLLAPSED = 5;   // 모바일 LIVE FEED 기본 표시 개수 (MORE로 최대 FEED_MAX)
 const MINI_CARD_COUNT = 3;         // PC JUST PASSED 옆 작은 카드 수
+const DRILL_CARD_COUNT = 5;        // [V10] JUST COMPLETED DRILL 카드 수 (최신순)
+// [V10] 기간 이벤트 표시: 그 탭을 볼 때 오늘(KST)이 기간 안이면 작게만 표시. 집계와 무관 — 기간이 지나면 저절로 사라짐
+const PERIOD_EVENTS = [{ period: "week", from: "2026-09-21", to: "2026-09-27", label: "PASS WEEK · SEP 21–27" }];
 const NEW_BADGE_MINUTES = 10;      // 최근 PASS가 이 시간(분) 이내면 NEW 배지 표시
 const TIME_ZONE = "Asia/Seoul";
 
@@ -200,7 +203,18 @@ function normalize(raw) {
     drillStat: s.drill == null || s.drill === "" ? null : toCount(s.drill), // toCount(null)은 0이 되므로 따로 처리
     testLeaders: normalizeOverall(raw.testLeaders, "unitCount"),
     drillLeaders: normalizeOverall(raw.drillLeaders, "setCount"),
+    periods: normalizePeriods(raw.periods), // [V10] DAILY/WEEKLY/MONTHLY 요약 (옛 API면 null → 오늘 값 그대로)
   };
+}
+
+/** [V10] 기간 요약 {learners, drill, pass} — DRILL(고유 SET)과 TEST PASS(고유 단원)는 합치지 않음 */
+function normalizePeriods(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const one = (p) => (p && typeof p === "object"
+    ? { learners: toCount(p.learners), drill: p.drill == null || p.drill === "" ? null : toCount(p.drill), pass: toCount(p.pass) }
+    : null);
+  const out = { today: one(raw.today), week: one(raw.week), month: one(raw.month) };
+  return out.today && out.week ? out : null;
 }
 
 /** [V6] 전체 단어장 합산 TOP 3 → 화면용 (허용된 필드만: 순위 / 개수 / 마스킹 이름)
@@ -216,7 +230,18 @@ function normalizeOverall(raw, countKey) {
   const learners = (p) => (Array.isArray(p && p.learners) ? p.learners : [])
     .map((l) => ({ student: maskName(l && l.student), count: toCount(l && l.count) }))
     .filter((l) => l.student && l.count >= 1);
-  return { today: clean(raw.today), week: clean(raw.week), learners: { today: learners(raw.today), week: learners(raw.week) } };
+  // [V10] 4·5위: TOP 3(dense rank) 밖 참여자(많은 순)에서 다음 두 학습량을 순위 번호로 → "조금만 더 하면 3위" / 나머지는 ALL LEARNERS
+  const board = (p) => {
+    const ranks = clean(p), rest = learners(p);
+    if (ranks.length < 3) return { ranks, rest };
+    const next = [...new Set(rest.map((l) => l.count))].slice(0, 2);
+    return {
+      ranks: ranks.concat(next.map((count, i) => ({ rank: 4 + i, count, students: rest.filter((l) => l.count === count).map((l) => l.student) }))),
+      rest: rest.filter((l) => !next.includes(l.count)),
+    };
+  };
+  const t = board(raw.today), w = board(raw.week), m = raw.month ? board(raw.month) : { ranks: null, rest: [] };
+  return { today: t.ranks, week: w.ranks, month: m.ranks, learners: { today: t.rest, week: w.rest, month: m.rest } };
 }
 
 /** [DETAILS] API details → 화면용 (허용된 필드만: 마스킹 이름 / 교재 / Day·Unit / 시간 / 학생별 PASS 횟수)
@@ -244,6 +269,13 @@ function normalizeDetails(raw) {
         })
         .filter((p) => p.student)
       : null,
+    // [V10] 오늘 고유 TEST PASS(학생+단어장+단원마다 처음 PASS 1줄) / 오늘 학습 학생(학생별 DRILL SET·PASS 수). 옛 API면 null
+    testPasses: Array.isArray(raw.testPasses) ? records(raw.testPasses) : null,
+    activeLearners: Array.isArray(raw.activeLearners)
+      ? raw.activeLearners
+        .map((s) => ({ student: maskName(s && s.student), drill: toCount(s && s.drill) || 0, pass: toCount(s && s.pass) || 0 }))
+        .filter((s) => s.student)
+      : null,
   };
 }
 
@@ -261,7 +293,7 @@ function normalizeLeaders(raw) {
     })
     .filter((l) => l.course && l.ranks.length);
   const r = raw && typeof raw === "object" ? raw : {};
-  return { today: clean(r.today), week: clean(r.week) };
+  return { today: clean(r.today), week: clean(r.week), month: Array.isArray(r.month) ? clean(r.month) : null }; // [V10] month
 }
 
 /* =====================================================================
@@ -391,7 +423,7 @@ function syncList(container, items, build, { animateNew }) {
 
   const seen = new Set();
   items.forEach((item, index) => {
-    const key = passKey(item);
+    const key = item._key || passKey(item); // [V10] DRILL 항목은 _key
     if (seen.has(key)) return;
     seen.add(key);
 
@@ -454,10 +486,26 @@ function buildFeedRow(p) {
   course.className = "fr-course";
   course.textContent = `${p.course} ${p.unit}`.trim();
   const pass = document.createElement("span");
-  pass.className = "fr-pass pass-chip";
-  pass.textContent = "PASS";
+  const isDrill = p._type === "drill"; // [V10] DRILL 완료 / TEST PASS 배지
+  pass.className = `fr-pass pass-chip ${isDrill ? "is-drill" : "is-pass"}`;
+  pass.textContent = isDrill ? "DRILL" : "PASS";
 
   li.append(makeAvatar(p), time, name, course, pass);
+  return li;
+}
+
+/* ---------- [V10] JUST COMPLETED DRILL 카드 ---------- */
+const drillItemKey = (p) => `D|${p.time}|${p.student}|${p.course}|${p.unit}|${p.setLabel}`;
+function buildDrillCard(p) {
+  const li = document.createElement("li");
+  li.className = "jd-card";
+  li.innerHTML = '<div class="jd-top"><div class="jd-meta"><p class="jd-time"></p><p class="jd-name"></p></div></div><p class="jd-course"></p><p class="jd-foot"><span class="jd-done">DRILL 완료</span><span class="jd-set"></span></p>';
+  li.querySelector(".jd-top").prepend(makeAvatar(p));
+  li.querySelector(".jd-time").textContent = p.time;
+  li.querySelector(".jd-name").textContent = p.student;
+  li.querySelector(".jd-course").textContent = `${p.course} ${p.unit}`.trim();
+  li.querySelector(".jd-set").textContent = p.setLabel && p.setLabel !== "SET" ? p.setLabel : "";
+  li.setAttribute("aria-label", `${p.time} ${p.student} ${p.course} ${p.unit} DRILL 완료`);
   return li;
 }
 
@@ -467,10 +515,16 @@ function renderLists(data) {
   // PC: JUST PASSED 옆 작은 카드 (latest 제외 최근 3건)
   syncList($("#miniCards"), data.recentPasses.slice(0, MINI_CARD_COUNT), buildMiniCard, { animateNew });
 
-  // FEED: PC에서는 latest 포함 / 모바일에서는 CSS로 latest 줄 숨김
+  // [V10] JUST COMPLETED DRILL: 오늘 DRILL 완료 (API details.drills 그대로, 최신순)
+  const drills = (data.details && data.details.drills ? data.details.drills : []).map((p) => ({ ...p, _type: "drill", _key: drillItemKey(p) }));
+  syncList($("#drillCards"), drills.slice(0, DRILL_CARD_COUNT), buildDrillCard, { animateNew });
+  $("#drillEmpty").hidden = drills.length > 0;
+
+  // FEED: DRILL 완료 + TEST PASS를 시간순으로 (PC에서는 latest 포함 / 모바일에서는 CSS로 latest 줄 숨김)
   const feedItems = [];
   if (data.latestPass) feedItems.push({ ...data.latestPass, _latest: true });
-  feedItems.push(...data.recentPasses);
+  feedItems.push(...data.recentPasses, ...drills);
+  feedItems.sort((a, b) => (toMinutes(b.time) ?? -1) - (toMinutes(a.time) ?? -1)); // 같은 시각이면 기존 순서 유지
   syncList($("#feedList"), feedItems.slice(0, FEED_MAX), buildFeedRow, { animateNew });
 
   $("#feedEmpty").hidden = feedItems.length > 0;
@@ -482,16 +536,20 @@ function setFeedExpanded(expanded) {
   $("#feedList").classList.toggle("is-expanded", expanded);
   const btn = $("#feedMore");
   btn.setAttribute("aria-expanded", expanded ? "true" : "false");
-  btn.querySelector(".fm-label").textContent = expanded ? "LESS · 접기" : `MORE · 최근 PASS ${FEED_MAX}개 보기`;
+  btn.querySelector(".fm-label").textContent = expanded ? "LESS · 접기" : `MORE · 최근 기록 ${FEED_MAX}개 보기`;
   btn.querySelector(".fm-sign").textContent = expanded ? "−" : "+";
 }
 
 /* ---------- 하단 TICKER (내용이 바뀐 경우에만 다시 만듦) ---------- */
 function renderTicker(data) {
   const s = data.stats;
+  const t = data.periods ? data.periods.today : { drill: data.drillStat, pass: s.pass, learners: s.learners }; // [V10] 오늘 요약, DRILL → TEST 순
   const items = [{ type: "live", text: "GORAE LIVE" }];
-  if (s.pass != null) items.push({ text: `TODAY ${s.pass} PASS` });
-  if (s.learners != null) items.push({ text: `${s.learners} LEARNERS` });
+  if (t.drill != null) items.push({ text: `TODAY ${t.drill} DRILL` });
+  if (t.pass != null) items.push({ text: `${t.drill != null ? "" : "TODAY "}${t.pass} PASS` });
+  if (t.learners != null) items.push({ text: `${t.learners} LEARNERS` });
+  const drills = data.details && data.details.drills ? data.details.drills.slice(0, 3) : [];
+  for (const p of drills) items.push({ type: "drill", text: p.student });
   const passes = [data.latestPass, ...data.recentPasses].filter(Boolean).slice(0, 6);
   for (const p of passes) items.push({ type: "pass", text: p.student });
   items.push({ type: "brand", text: "Small Steps, Big Changes." });
@@ -518,10 +576,10 @@ function renderTicker(data) {
       if (it.type === "live") {
         span.classList.add("tk-live");
         span.append(document.createElement("i"), it.text);
-      } else if (it.type === "pass") {
-        span.classList.add("tk-pass");
+      } else if (it.type === "pass" || it.type === "drill") {
+        span.classList.add(it.type === "drill" ? "tk-drill" : "tk-pass");
         const b = document.createElement("b");
-        b.textContent = "100% PASS";
+        b.textContent = it.type === "drill" ? "DRILL 완료" : "100% PASS";
         span.append(`${it.text} `, b);
       } else {
         if (it.type === "brand") span.classList.add("tk-brand");
@@ -601,20 +659,26 @@ function renderLeaders(data) {
   $("#leaderEmpty").hidden = list.length > 0;
 }
 
+/* [V10] 기간: DAILY(today) / WEEKLY(week) / MONTHLY(month). 상단 기간 탭과 LEADERS 탭은 같은 값 — 받은 응답만 다시 그림 */
+const monthReady = (d) => !!(d && ((d.periods && d.periods.month) || d.leaders.month));
+
 function setLeaderPeriod(period) {
-  if (period !== "today" && period !== "week") return;
+  if (!["today", "week", "month"].includes(period)) return;
+  if (period === "month" && !monthReady(state.data)) return;
   leaderView.period = period;
-  document.querySelectorAll(".leader-tab").forEach((tab) => {
+  document.querySelectorAll(".leader-tab, .period-tab").forEach((tab) => {
     const on = tab.dataset.period === period;
     tab.setAttribute("aria-selected", on ? "true" : "false");
-    if (on) $("#leaderPanel").setAttribute("aria-labelledby", tab.id);
+    if (on && tab.classList.contains("leader-tab")) $("#leaderPanel").setAttribute("aria-labelledby", tab.id);
   });
+  if (state.data) renderPeriodStats(state.data);
+  renderPeriodEvent();
   $("#leaderList").replaceChildren();
   leaderView.renderedKey = "";
   renderLeaders(state.data);
   overallView.renderedKey = "";
   renderOverall(state.data);
-  $("#leaderPanel").scrollLeft = 0; // [V9] 모바일 carousel: 기간을 바꾸면 첫 카드(TEST LEADERS)로
+  $("#leaderPanel").scrollLeft = 0; // [V9] 모바일 carousel: 기간을 바꾸면 첫 카드(DRILL LEADERS)로
   syncLeaderDots();
 }
 
@@ -622,9 +686,9 @@ function setLeaderPeriod(period) {
    같은 10초 refresh 응답(data.testLeaders / data.drillLeaders)만 사용. 추가 API 호출 없음.
    TEST = UNITS, DRILL = SETS (두 값을 합산하지 않음). 기존 단어장별 랭킹(renderLeaders)은 그대로 */
 const overallView = { renderedKey: "" };
-const OVERALL_BOARDS = [
-  { id: "testLeaders", field: "testLeaders", label: "TEST", word: (n) => (n === 1 ? "UNIT" : "UNITS") },
+const OVERALL_BOARDS = [ // [V10] DRILL → TEST
   { id: "drillLeaders", field: "drillLeaders", label: "DRILL", word: (n) => (n === 1 ? "SET" : "SETS") },
+  { id: "testLeaders", field: "testLeaders", label: "TEST", word: (n) => (n === 1 ? "UNIT" : "UNITS") },
 ];
 
 function renderOverall(data) {
@@ -698,7 +762,36 @@ function renderOverall(data) {
   }
 }
 
-/* ---------- [V6] 상단 DRILL 완료 카드: API stats.drill (오늘 daily unique SET 수). 없으면 — ---------- */
+/* ---------- [V10] 기간 통계: API periods[기간] (옛 API면 오늘 stats 그대로). 상세 목록(모달)은 오늘 기록이라 DAILY에서만 ---------- */
+const PERIOD_KO = { today: "오늘", week: "이번 주", month: "이번 달" };
+function renderPeriodStats(data) {
+  const p = data.periods && data.periods[leaderView.period];
+  const period = p ? leaderView.period : "today";
+  const v = p || { learners: data.stats.learners, pass: data.stats.pass, drill: data.drillStat };
+  renderStats({ learners: v.learners, pass: v.pass });
+  renderDrillStat(v.drill);
+  document.querySelectorAll("[data-period-ko]").forEach((el) => { el.textContent = PERIOD_KO[period]; });
+  document.querySelectorAll(".stat[data-detail]").forEach((el) => {
+    const on = period === "today";
+    el.classList.toggle("is-static", !on);
+    el.tabIndex = on ? 0 : -1;
+    if (on) el.removeAttribute("aria-disabled"); else el.setAttribute("aria-disabled", "true");
+  });
+}
+
+function kstToday() {
+  const p = kstParts(new Date(), kstDateFmt);
+  return `${p.year}-${p.month}-${p.day}`;
+}
+function renderPeriodEvent() {
+  const today = kstToday();
+  const ev = PERIOD_EVENTS.find((e) => e.period === leaderView.period && today >= e.from && today <= e.to);
+  const el = $("#periodEvent");
+  el.hidden = !ev;
+  el.textContent = ev ? ev.label : "";
+}
+
+/* ---------- [V6] 상단 DRILL 완료 카드: API stats.drill / [V10] periods[기간].drill (고유 SET 수). 없으면 — ---------- */
 const drillView = { value: undefined };
 function renderDrillStat(value) {
   if (value === drillView.value) return;
@@ -719,7 +812,7 @@ function renderDrillStat(value) {
 }
 
 /* ---------- [V9] 모바일(≤599px) LEADERS carousel ----------
-   가로 스와이프·스냅은 CSS(scroll-snap)가 담당: TEST → DRILL → 단어장별 카드.
+   가로 스와이프·스냅은 CSS(scroll-snap)가 담당: DRILL → TEST → 단어장별 카드. [V10]
    JS는 아래 위치 점(pagination)과 "모두 보기"만. 데스크톱에서는 아무것도 하지 않음 */
 const MOBILE_LEARNERS_VISIBLE = 5; // 모바일 카드 안 ALL LEARNERS 줄 수 (style.css의 nth-child(n + 6)과 같이 바꿀 것)
 const leaderCarousel = { mq: window.matchMedia("(max-width: 599px)"), count: -1, active: -1, raf: 0 };
@@ -786,7 +879,7 @@ function initLeaderCarousel() {
 }
 
 function initLeaders() {
-  document.querySelectorAll(".leader-tab").forEach((tab) => {
+  document.querySelectorAll(".leader-tab, .period-tab").forEach((tab) => { // [V10] 상단 기간 탭도 같은 기간
     tab.addEventListener("click", () => setLeaderPeriod(tab.dataset.period));
   });
   $("#feedMore").addEventListener("click", () => {
@@ -800,8 +893,9 @@ function initLeaders() {
 /* ---------- [DETAILS] 통계 카드 클릭 → 상세 목록 모달 ----------
    카드 숫자와 같은 API 응답(data.stats / data.details)만 사용. 추가 API 호출 없음. */
 const DETAIL_KINDS = {
-  learners:  { title: "오늘 학습 참여",   en: "TODAY'S LEARNERS", unit: "명", icon: "#i-users", list: (d) => d.learners },
-  pass:      { title: "100% 통과",        en: "TODAY'S PASS",     unit: "회", icon: "#i-star",  list: (d) => d.passes,    tag: "PASS" },
+  // [V10] 새 API: 학습 학생 = DRILL·TEST 중 하나라도 한 학생(학생별 DRILL/PASS 수), TEST PASS = 오늘 고유 PASS. 옛 API면 기존 목록
+  learners:  { title: "오늘 학습 학생",   en: "TODAY'S LEARNERS", unit: "명", icon: "#i-users", list: (d) => d.activeLearners || d.learners },
+  pass:      { title: "오늘 TEST PASS",   en: "TODAY'S TEST PASS", unit: "회", icon: "#i-star",  list: (d) => d.testPasses || d.passes, tag: "PASS" },
   completed: { title: "오늘 완료된 학습", en: "COMPLETED TODAY",  unit: "개", icon: "#i-book",  list: (d) => d.completed, tag: "완료" },
   retry:     { title: "오늘 재학습",      en: "RETRY TODAY",      unit: "개", icon: "#i-retry", list: (d) => d.retries,   tag: "RETRY" },
   drill:     { title: "오늘 DRILL 완료",  en: "DRILL COMPLETED",  unit: "세트", icon: "#i-book", list: (d) => d.drills }, // [V7] 태그 자리에 SET n/m
@@ -809,7 +903,7 @@ const DETAIL_KINDS = {
   testLearners:  { title: () => `TEST ${leaderPeriodKo()} 참여 기록`,  en: "ALL LEARNERS", unit: "명", icon: "#i-star", source: (data) => (data && data.testLeaders ? data.testLeaders.learners[leaderView.period] : null),   word: (n) => (n === 1 ? "UNIT" : "UNITS") },
   drillLearners: { title: () => `DRILL ${leaderPeriodKo()} 참여 기록`, en: "ALL LEARNERS", unit: "명", icon: "#i-book", source: (data) => (data && data.drillLeaders ? data.drillLeaders.learners[leaderView.period] : null), word: (n) => (n === 1 ? "SET" : "SETS") },
 };
-const leaderPeriodKo = () => (leaderView.period === "week" ? "이번 주" : "오늘");
+const leaderPeriodKo = () => PERIOD_KO[leaderView.period] || "오늘";
 const detailView = { kind: null, returnFocus: null };
 
 function openDetail(kind, trigger) {
@@ -857,7 +951,7 @@ function renderDetail() {
   const items = q ? all.filter((it) => it.student.includes(q) || plain(it.student).includes(plain(q))) : all;
 
   const per = k.source ? "명" : "건";
-  const since = k.source && leaderView.period === "week" ? "이번 주 월요일부터" : "오늘 00:00 이후";
+  const since = !k.source || leaderView.period === "today" ? "오늘 00:00 이후" : leaderView.period === "week" ? "이번 주 월요일부터" : "이번 달 1일부터";
   $("#dmMeta").textContent = !list
     ? "상세 기록을 불러오는 중입니다."
     : q ? `검색 결과 ${items.length}${per} / 전체 ${all.length}${per}` : `전체 ${all.length}${per} · ${since} (한국 시간)`;
@@ -874,6 +968,13 @@ function renderDetail() {
       li.querySelector(".dm-medal").textContent = MEDALS[rank];
       li.querySelector(".dm-name").textContent = it.student;
       li.querySelector(".dm-pill").textContent = it.pass >= 1 ? `PASS ${it.pass}회` : "도전 중";
+      if ("drill" in it && it.drill >= 1) { // [V10] DRILL도 한 학생: DRILL n세트 표시 (PASS 없으면 PASS 칸 대신)
+        const d = document.createElement("span");
+        d.className = "dm-pill is-drill";
+        d.textContent = `DRILL ${it.drill}세트`;
+        const pp = li.querySelector(".dm-pill.is-pass");
+        if (it.pass >= 1) pp.before(d); else pp.replaceWith(d);
+      }
     } else if (k.source) {
       // [V9] ALL LEARNERS: 오늘 학습 참여 목록과 같은 줄 모양, 메달·순위 번호 없음
       li.className = "dm-row dm-learner";
@@ -904,9 +1005,10 @@ function renderDetail() {
 
 function initDetails() {
   document.querySelectorAll(".stat[data-detail]").forEach((cardEl) => {
-    cardEl.addEventListener("click", () => openDetail(cardEl.dataset.detail, cardEl));
+    const open = () => { if (!cardEl.classList.contains("is-static")) openDetail(cardEl.dataset.detail, cardEl); }; // [V10] DAILY에서만
+    cardEl.addEventListener("click", open);
     cardEl.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openDetail(cardEl.dataset.detail, cardEl); }
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); }
     });
   });
   $("#detailModal").addEventListener("click", (e) => { if (e.target.closest("[data-close]")) closeDetail(); });
@@ -981,8 +1083,10 @@ function renderPassRace(details) {
 /* ---------- 전체 적용 ---------- */
 function applyData(data) {
   state.data = data;
-  renderStats(data.stats);
-  renderDrillStat(data.drillStat); // [V6]
+  // [V10] MONTHLY는 새 API(month)가 있을 때만
+  document.querySelectorAll('.leader-tab[data-period="month"], .period-tab[data-period="month"]').forEach((t) => { t.hidden = !monthReady(data); });
+  renderPeriodStats(data); // [V10] 기간 통계 (옛 API면 오늘 stats·stats.drill 그대로)
+  renderPeriodEvent();
   renderPassRace(data.details);
   renderFeatured(data.latestPass, data.generatedAt);
   renderLists(data);
@@ -1104,7 +1208,15 @@ init();
 const NOW_LEARNING_URL = "https://gorae-learning-app-builder.ezzang.chatgpt.site/api/now-learning";
 const NOW_REFRESH_MS = 30000;       // 30초마다 다시 조회 (탭이 숨겨지면 멈춤)
 const NOW_STALE_MS = 3 * 60 * 1000; // 이보다 오래 못 받아오면 지난 목록을 숨김
-const nowState = { timer: 0, lastOkAt: 0, key: null, inFlight: false };
+const nowState = { timer: 0, lastOkAt: 0, key: null, inFlight: false, resizeTimer: 0 };
+
+function nowAreaLabel(area) { // 뜻은 그대로, 짧게만: Vocabulary DRILL → DRILL, Vocabulary TEST → TEST
+  const a = area.toLowerCase();
+  if (a.includes("drill")) return "DRILL";
+  if (a.includes("test")) return "TEST";
+  if (a.includes("grammar")) return "GRAMMAR";
+  return area.toUpperCase();
+}
 
 function nowAreaTone(area) {
   const a = area.toLowerCase();
@@ -1126,19 +1238,50 @@ function renderNowLearning(data) {
   section.dataset.state = live ? "live" : "empty";
   $("#nowSub").textContent = live ? `지금 공부 중 · ${count}명` : "지금은 잠시 쉬어가는 중이에요.";
   const list = $("#nowList");
-  list.hidden = !live || students.length === 0;
   list.replaceChildren(
     ...(live ? students : []).map((s) => {
       const area = String(s.current_area ?? "").trim() || "LEARNING";
+      const detail = cleanText(s.detail || [s.book, s.unit].filter(Boolean).join(" ")); // API에 있을 때만 (없는 내용은 만들지 않음)
       const li = document.createElement("li");
       li.className = `now-row ${nowAreaTone(area)}`;
       li.innerHTML = '<span class="now-pip" aria-hidden="true"></span><span class="now-name"></span><span class="now-area"></span>';
       li.querySelector(".now-name").textContent = s.name;
-      li.querySelector(".now-area").textContent = area.toUpperCase();
+      li.querySelector(".now-area").textContent = nowAreaLabel(area);
+      if (detail) {
+        const d = document.createElement("span");
+        d.className = "now-detail";
+        d.textContent = detail;
+        li.append(d);
+      }
+      li.setAttribute("aria-label", `${s.name} ${nowAreaLabel(area)}${detail ? " " + detail : ""}`);
       return li;
     }),
   );
+  $("#nowViewport").hidden = !live || students.length === 0;
+  layoutNowFlow();
 }
+
+/** 한 줄에 다 안 들어가면 같은 줄을 한 번 더 붙여 가로로 계속 흐르게 (동작 줄이기 설정이면 흐르지 않고 옆으로 스크롤) */
+function layoutNowFlow() {
+  const vp = $("#nowViewport"), list = $("#nowList");
+  list.querySelectorAll(".is-clone").forEach((n) => n.remove());
+  list.classList.remove("is-flowing");
+  if (vp.hidden || reduceMotion.matches) return;
+  const w = list.scrollWidth;
+  if (w <= vp.clientWidth) return;
+  [...list.children].forEach((n) => {
+    const c = n.cloneNode(true);
+    c.classList.add("is-clone");
+    c.setAttribute("aria-hidden", "true");
+    list.append(c);
+  });
+  list.style.setProperty("--now-duration", `${Math.max(14, Math.round(w / 45))}s`);
+  list.classList.add("is-flowing");
+}
+window.addEventListener("resize", () => {
+  clearTimeout(nowState.resizeTimer);
+  nowState.resizeTimer = setTimeout(layoutNowFlow, 200);
+});
 
 async function refreshNowLearning() {
   if (nowState.inFlight) return;
