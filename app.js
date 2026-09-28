@@ -207,7 +207,7 @@ function normalize(raw) {
   };
 }
 
-/** [V10] 기간 요약 {learners, drill, pass} — DRILL(고유 SET)과 TEST PASS(고유 단원)는 합치지 않음 */
+/** [V10] 기간 요약 {learners, drill, pass} — DRILL(Day/Unit 완료)과 TEST PASS(고유 단원)는 합치지 않음 */
 function normalizePeriods(raw) {
   if (!raw || typeof raw !== "object") return null;
   const one = (p) => (p && typeof p === "object"
@@ -218,7 +218,7 @@ function normalizePeriods(raw) {
 }
 
 /** [V6] 전체 단어장 합산 TOP 3 → 화면용 (허용된 필드만: 순위 / 개수 / 마스킹 이름)
-    rank는 API가 보낸 dense rank 그대로. TEST = unitCount(UNITS), DRILL = setCount(SETS) — 서로 합치지 않음 */
+    rank는 API가 보낸 dense rank 그대로. TEST = unitCount(UNITS), DRILL = setCount(Day/Unit 완료 수, DONE) — 서로 합치지 않음 */
 function normalizeOverall(raw, countKey) {
   if (!raw || typeof raw !== "object") return null;
   const names = (v) => (Array.isArray(v) ? v : []).map(maskName).filter(Boolean);
@@ -684,10 +684,10 @@ function setLeaderPeriod(period) {
 
 /* ---------- [V6] 전체 단어장 TEST LEADERS / DRILL LEADERS ----------
    같은 10초 refresh 응답(data.testLeaders / data.drillLeaders)만 사용. 추가 API 호출 없음.
-   TEST = UNITS, DRILL = SETS (두 값을 합산하지 않음). 기존 단어장별 랭킹(renderLeaders)은 그대로 */
+   TEST = UNITS, DRILL = DONE(Day/Unit 완료 수) (두 값을 합산하지 않음). 기존 단어장별 랭킹(renderLeaders)은 그대로 */
 const overallView = { renderedKey: "" };
 const OVERALL_BOARDS = [ // [V10] DRILL → TEST
-  { id: "drillLeaders", field: "drillLeaders", label: "DRILL", word: (n) => (n === 1 ? "SET" : "SETS") },
+  { id: "drillLeaders", field: "drillLeaders", label: "DRILL", word: () => "DONE" }, // Day/Unit DRILL 완료 수 (SET 수 아님)
   { id: "testLeaders", field: "testLeaders", label: "TEST", word: (n) => (n === 1 ? "UNIT" : "UNITS") },
 ];
 
@@ -791,7 +791,7 @@ function renderPeriodEvent() {
   el.textContent = ev ? ev.label : "";
 }
 
-/* ---------- [V6] 상단 DRILL 완료 카드: API stats.drill / [V10] periods[기간].drill (고유 SET 수). 없으면 — ---------- */
+/* ---------- [V6] 상단 DRILL 완료 카드: API stats.drill / [V10] periods[기간].drill (Day/Unit DRILL 완료 수). 없으면 — ---------- */
 const drillView = { value: undefined };
 function renderDrillStat(value) {
   if (value === drillView.value) return;
@@ -898,10 +898,10 @@ const DETAIL_KINDS = {
   pass:      { title: "오늘 TEST PASS",   en: "TODAY'S TEST PASS", unit: "회", icon: "#i-star",  list: (d) => d.testPasses || d.passes, tag: "PASS" },
   completed: { title: "오늘 완료된 학습", en: "COMPLETED TODAY",  unit: "개", icon: "#i-book",  list: (d) => d.completed, tag: "완료" },
   retry:     { title: "오늘 재학습",      en: "RETRY TODAY",      unit: "개", icon: "#i-retry", list: (d) => d.retries,   tag: "RETRY" },
-  drill:     { title: "오늘 DRILL 완료",  en: "DRILL COMPLETED",  unit: "세트", icon: "#i-book", list: (d) => d.drills }, // [V7] 태그 자리에 SET n/m
+  drill:     { title: "오늘 DRILL 완료",  en: "DRILL COMPLETED",  unit: "회", icon: "#i-book", list: (d) => d.drills }, // [V7] 태그 자리에 SET n/m (완료 행은 n/n)
   // [V9] 모바일 ALL LEARNERS "모두 보기": TOP 3 밖 참여자 전원 (지금 보고 있는 TODAY/WEEKLY, API learners 그대로 · 순위 번호 없음)
   testLearners:  { title: () => `TEST ${leaderPeriodKo()} 참여 기록`,  en: "ALL LEARNERS", unit: "명", icon: "#i-star", source: (data) => (data && data.testLeaders ? data.testLeaders.learners[leaderView.period] : null),   word: (n) => (n === 1 ? "UNIT" : "UNITS") },
-  drillLearners: { title: () => `DRILL ${leaderPeriodKo()} 참여 기록`, en: "ALL LEARNERS", unit: "명", icon: "#i-book", source: (data) => (data && data.drillLeaders ? data.drillLeaders.learners[leaderView.period] : null), word: (n) => (n === 1 ? "SET" : "SETS") },
+  drillLearners: { title: () => `DRILL ${leaderPeriodKo()} 참여 기록`, en: "ALL LEARNERS", unit: "명", icon: "#i-book", source: (data) => (data && data.drillLeaders ? data.drillLeaders.learners[leaderView.period] : null), word: () => "DONE" },
 };
 const leaderPeriodKo = () => PERIOD_KO[leaderView.period] || "오늘";
 const detailView = { kind: null, returnFocus: null };
@@ -968,10 +968,10 @@ function renderDetail() {
       li.querySelector(".dm-medal").textContent = MEDALS[rank];
       li.querySelector(".dm-name").textContent = it.student;
       li.querySelector(".dm-pill").textContent = it.pass >= 1 ? `PASS ${it.pass}회` : "도전 중";
-      if ("drill" in it && it.drill >= 1) { // [V10] DRILL도 한 학생: DRILL n세트 표시 (PASS 없으면 PASS 칸 대신)
+      if ("drill" in it && it.drill >= 1) { // [V10] DRILL도 한 학생: DRILL 완료 n회 표시 (PASS 없으면 PASS 칸 대신)
         const d = document.createElement("span");
         d.className = "dm-pill is-drill";
-        d.textContent = `DRILL ${it.drill}세트`;
+        d.textContent = `DRILL 완료 ${it.drill}회`;
         const pp = li.querySelector(".dm-pill.is-pass");
         if (it.pass >= 1) pp.before(d); else pp.replaceWith(d);
       }
