@@ -20,7 +20,7 @@
 
 // Google Apps Script Web App 배포 URL (…/exec). 아직 없음 → 비워 둠.
 // ⚠ 연결 시 fetch에 커스텀 헤더를 넣지 마세요. (Apps Script는 CORS preflight를 처리하지 못함)
-const API_URL = "https://script.google.com/macros/s/AKfycbzHYsxWdo4WLQYrUfvWaT2hEqgoHxhz-3z-a4VPxT9TDqcXQrqhpiKlxJt8XEs3D_Etsw/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbzHYsxWdo4WLQYrUfvWaT2hEqgoHxhz-3z-a4VPxT9TDqcXQrqhpiKlxJt8XEs3D_Etsw/exec?live=1";
 
 // true: 고정 demoData로 디자인 확인 / false: API_URL에서 실제 데이터 사용
 const DEMO_MODE = false;
