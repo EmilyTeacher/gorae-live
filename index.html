@@ -107,10 +107,11 @@
     </section>
 
     <!-- ===================== PERIOD + STATS (보조 정보) =====================
-         DAILY = 오늘 / WEEKLY = 이번 주 월요일~ / MONTHLY = 이번 달 1일~ (KST). 한 번 받은 API 응답으로 전환 — 탭마다 다시 부르지 않음
+         YESTERDAY = 어제(과제 확인) / DAILY = 오늘 / WEEKLY = 이번 주 월요일~ / MONTHLY = 이번 달 1일~ (KST). 한 번 받은 API 응답으로 전환 — 탭마다 다시 부르지 않음
          숫자는 경쟁을 돕는 보조 정보라 작게: DRILL → TEST PASS → 학습 학생 -->
     <div class="period-bar">
       <div class="period-tabs" role="tablist" aria-label="기간 선택">
+        <button type="button" class="period-tab" role="tab" data-period="yesterday" aria-selected="false" hidden>YESTERDAY</button>
         <button type="button" class="period-tab" role="tab" data-period="today" aria-selected="true">DAILY</button>
         <button type="button" class="period-tab" role="tab" data-period="week" aria-selected="false">WEEKLY</button>
         <button type="button" class="period-tab" role="tab" data-period="month" aria-selected="false" hidden>MONTHLY</button>
@@ -242,6 +243,9 @@
       </header>
 
       <div class="leader-tabs" role="tablist" aria-label="리더보드 기간">
+        <button type="button" class="leader-tab" role="tab" id="leaderTabYesterday" data-period="yesterday" aria-selected="false" aria-controls="leaderPanel" hidden>
+          <strong>YESTERDAY</strong><span>어제</span>
+        </button>
         <button type="button" class="leader-tab" role="tab" id="leaderTabToday" data-period="today" aria-selected="true" aria-controls="leaderPanel">
           <strong>DAILY RANKING</strong><span>오늘</span>
         </button>

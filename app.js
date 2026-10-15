@@ -20,7 +20,8 @@
 
 // Google Apps Script Web App 배포 URL (…/exec). 아직 없음 → 비워 둠.
 // ⚠ 연결 시 fetch에 커스텀 헤더를 넣지 마세요. (Apps Script는 CORS preflight를 처리하지 못함)
-const API_URL = "https://script.google.com/macros/s/AKfycbzHYsxWdo4WLQYrUfvWaT2hEqgoHxhz-3z-a4VPxT9TDqcXQrqhpiKlxJt8XEs3D_Etsw/exec?live=1";
+// [V11] GORAE LIVE 전용 배포 "GORAE LIVE V11 YESTERDAY" (버전 28, 어제 기록 포함). 이전 배포(AKfycbzHYsx…)는 SMS 등 그대로 둠
+const API_URL = "https://script.google.com/macros/s/AKfycbyhLRF23aate1nbzRfIhou2v7bOgTYLYk_RuMQoGi96bwP_YGKunjp2vRAx4kz1A9buzg/exec?live=1";
 
 // true: 고정 demoData로 디자인 확인 / false: API_URL에서 실제 데이터 사용
 const DEMO_MODE = false;
@@ -204,6 +205,7 @@ function normalize(raw) {
     testLeaders: normalizeOverall(raw.testLeaders, "unitCount"),
     drillLeaders: normalizeOverall(raw.drillLeaders, "setCount"),
     periods: normalizePeriods(raw.periods), // [V10] DAILY/WEEKLY/MONTHLY 요약 (옛 API면 null → 오늘 값 그대로)
+    yesterdayDetails: normalizeDetails(raw.yesterdayDetails), // [V11] 어제 상세 목록 (과제 확인용). 옛 API면 null
   };
 }
 
@@ -213,7 +215,7 @@ function normalizePeriods(raw) {
   const one = (p) => (p && typeof p === "object"
     ? { learners: toCount(p.learners), drill: p.drill == null || p.drill === "" ? null : toCount(p.drill), pass: toCount(p.pass) }
     : null);
-  const out = { today: one(raw.today), week: one(raw.week), month: one(raw.month) };
+  const out = { today: one(raw.today), week: one(raw.week), month: one(raw.month), yesterday: one(raw.yesterday) }; // [V11] yesterday
   return out.today && out.week ? out : null;
 }
 
@@ -241,7 +243,8 @@ function normalizeOverall(raw, countKey) {
     };
   };
   const t = board(raw.today), w = board(raw.week), m = raw.month ? board(raw.month) : { ranks: null, rest: [] };
-  return { today: t.ranks, week: w.ranks, month: m.ranks, learners: { today: t.rest, week: w.rest, month: m.rest } };
+  const y = raw.yesterday ? board(raw.yesterday) : { ranks: null, rest: [] }; // [V11]
+  return { today: t.ranks, week: w.ranks, month: m.ranks, yesterday: y.ranks, learners: { today: t.rest, week: w.rest, month: m.rest, yesterday: y.rest } };
 }
 
 /** [DETAILS] API details → 화면용 (허용된 필드만: 마스킹 이름 / 교재 / Day·Unit / 시간 / 학생별 PASS 횟수)
@@ -293,7 +296,7 @@ function normalizeLeaders(raw) {
     })
     .filter((l) => l.course && l.ranks.length);
   const r = raw && typeof raw === "object" ? raw : {};
-  return { today: clean(r.today), week: clean(r.week), month: Array.isArray(r.month) ? clean(r.month) : null }; // [V10] month
+  return { today: clean(r.today), week: clean(r.week), month: Array.isArray(r.month) ? clean(r.month) : null, yesterday: Array.isArray(r.yesterday) ? clean(r.yesterday) : null }; // [V10] month [V11] yesterday
 }
 
 /* =====================================================================
@@ -661,10 +664,13 @@ function renderLeaders(data) {
 
 /* [V10] 기간: DAILY(today) / WEEKLY(week) / MONTHLY(month). 상단 기간 탭과 LEADERS 탭은 같은 값 — 받은 응답만 다시 그림 */
 const monthReady = (d) => !!(d && ((d.periods && d.periods.month) || d.leaders.month));
+// [V11] YESTERDAY: 어제 기록 (과제 확인용). 새 API(periods.yesterday)가 있을 때만
+const yesterdayReady = (d) => !!(d && d.periods && d.periods.yesterday);
 
 function setLeaderPeriod(period) {
-  if (!["today", "week", "month"].includes(period)) return;
+  if (!["yesterday", "today", "week", "month"].includes(period)) return;
   if (period === "month" && !monthReady(state.data)) return;
+  if (period === "yesterday" && !yesterdayReady(state.data)) return;
   leaderView.period = period;
   document.querySelectorAll(".leader-tab, .period-tab").forEach((tab) => {
     const on = tab.dataset.period === period;
@@ -763,7 +769,7 @@ function renderOverall(data) {
 }
 
 /* ---------- [V10] 기간 통계: API periods[기간] (옛 API면 오늘 stats 그대로). 상세 목록(모달)은 오늘 기록이라 DAILY에서만 ---------- */
-const PERIOD_KO = { today: "오늘", week: "이번 주", month: "이번 달" };
+const PERIOD_KO = { yesterday: "어제", today: "오늘", week: "이번 주", month: "이번 달" };
 function renderPeriodStats(data) {
   const p = data.periods && data.periods[leaderView.period];
   const period = p ? leaderView.period : "today";
@@ -772,7 +778,7 @@ function renderPeriodStats(data) {
   renderDrillStat(v.drill);
   document.querySelectorAll("[data-period-ko]").forEach((el) => { el.textContent = PERIOD_KO[period]; });
   document.querySelectorAll(".stat[data-detail]").forEach((el) => {
-    const on = period === "today";
+    const on = period === "today" || (period === "yesterday" && !!data.yesterdayDetails); // [V11] 어제도 상세 목록(과제 확인)
     el.classList.toggle("is-static", !on);
     el.tabIndex = on ? 0 : -1;
     if (on) el.removeAttribute("aria-disabled"); else el.setAttribute("aria-disabled", "true");
@@ -904,6 +910,8 @@ const DETAIL_KINDS = {
   drillLearners: { title: () => `DRILL ${leaderPeriodKo()} 참여 기록`, en: "ALL LEARNERS", unit: "명", icon: "#i-book", source: (data) => (data && data.drillLeaders ? data.drillLeaders.learners[leaderView.period] : null), word: () => "DONE" },
 };
 const leaderPeriodKo = () => PERIOD_KO[leaderView.period] || "오늘";
+// [V11] 상단 카드 상세(ALL LEARNERS 제외)를 어제 탭에서 열었는지
+const detailIsYesterday = (kind) => leaderView.period === "yesterday" && !!DETAIL_KINDS[kind] && !DETAIL_KINDS[kind].source;
 const detailView = { kind: null, returnFocus: null };
 
 function openDetail(kind, trigger) {
@@ -914,8 +922,9 @@ function openDetail(kind, trigger) {
   const modal = $("#detailModal");
   modal.querySelector(".dm-panel").dataset.kind = kind;
   $("#dmIcon").setAttribute("href", k.icon);
-  $("#dmTitle").textContent = typeof k.title === "function" ? k.title() : k.title;
-  $("#dmEn").textContent = k.en;
+  const isY = detailIsYesterday(kind); // [V11] 어제 탭에서 연 카드 상세 = 어제 기록
+  $("#dmTitle").textContent = typeof k.title === "function" ? k.title() : isY ? k.title.replace(/^오늘/, "어제") : k.title;
+  $("#dmEn").textContent = isY ? k.en.replace("TODAY'S", "YESTERDAY'S").replace("TODAY", "YESTERDAY") : k.en;
   $("#dmUnit").textContent = k.unit;
   $("#dmSearch").value = "";
   $("#detailModal .dm-search").hidden = kind === "retry"; // RETRY는 이름이 없으므로 검색창 없음
@@ -939,7 +948,8 @@ function renderDetail() {
   if (!kind) return;
   const k = DETAIL_KINDS[kind];
   const statKey = { learners: "learners", pass: "pass", completed: "completed", retry: "retry" }[kind];
-  const details = state.data && state.data.details;
+  const isY = detailIsYesterday(kind); // [V11]
+  const details = state.data && (isY ? state.data.yesterdayDetails : state.data.details);
   // [V9] ALL LEARNERS(모바일 "모두 보기")는 details가 아니라 지금 기간의 learners 목록
   const list = k.source ? k.source(state.data) : details ? k.list(details) : null; // DRILL 목록은 옛 API에는 없음(null)
   const count = kind === "drill" ? drillView.value : k.source ? (list ? list.length : null) : state.stats[statKey]; // [V7] DRILL은 상단 카드와 같은 stats.drill
@@ -951,7 +961,8 @@ function renderDetail() {
   const items = q ? all.filter((it) => it.student.includes(q) || plain(it.student).includes(plain(q))) : all;
 
   const per = k.source ? "명" : "건";
-  const since = !k.source || leaderView.period === "today" ? "오늘 00:00 이후" : leaderView.period === "week" ? "이번 주 월요일부터" : "이번 달 1일부터";
+  const since = isY || (k.source && leaderView.period === "yesterday") ? "어제 하루 (00:00~24:00)" // [V11]
+    : !k.source || leaderView.period === "today" ? "오늘 00:00 이후" : leaderView.period === "week" ? "이번 주 월요일부터" : "이번 달 1일부터";
   $("#dmMeta").textContent = !list
     ? "상세 기록을 불러오는 중입니다."
     : q ? `검색 결과 ${items.length}${per} / 전체 ${all.length}${per}` : `전체 ${all.length}${per} · ${since} (한국 시간)`;
@@ -1000,7 +1011,7 @@ function renderDetail() {
     return li;
   }));
   $("#dmEmpty").hidden = !list || items.length > 0;
-  $("#dmEmpty").textContent = q ? "검색 결과가 없습니다." : "오늘 기록이 아직 없습니다.";
+  $("#dmEmpty").textContent = q ? "검색 결과가 없습니다." : isY ? "어제 기록이 없습니다." : "오늘 기록이 아직 없습니다.";
 }
 
 function initDetails() {
@@ -1085,6 +1096,8 @@ function applyData(data) {
   state.data = data;
   // [V10] MONTHLY는 새 API(month)가 있을 때만
   document.querySelectorAll('.leader-tab[data-period="month"], .period-tab[data-period="month"]').forEach((t) => { t.hidden = !monthReady(data); });
+  // [V11] YESTERDAY는 새 API(periods.yesterday)가 있을 때만
+  document.querySelectorAll('.leader-tab[data-period="yesterday"], .period-tab[data-period="yesterday"]').forEach((t) => { t.hidden = !yesterdayReady(data); });
   renderPeriodStats(data); // [V10] 기간 통계 (옛 API면 오늘 stats·stats.drill 그대로)
   renderPeriodEvent();
   renderPassRace(data.details);

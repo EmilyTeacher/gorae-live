@@ -1952,6 +1952,15 @@ html.dm-open { overflow: hidden; }
 .leader-tab[hidden] { display: none; }
 .leader-tab[data-period="month"][aria-selected="true"] { --tab: 255 110 180; }
 .leader-tab[data-period="month"][aria-selected="true"] span { color: #ffc4e0; }
+/* [V11] YESTERDAY (어제 · 과제 확인) = mint */
+.period-tab[data-period="yesterday"] { --tab: 60 210 150; }
+.leader-tab[data-period="yesterday"][aria-selected="true"] { --tab: 60 210 150; }
+.leader-tab[data-period="yesterday"][aria-selected="true"] span { color: #b6f5dc; }
+.leaders:has(.leader-tab[data-period="yesterday"][aria-selected="true"]) .ld-course::after { content: "YESTERDAY"; color: #8ff0c8; }
+@media (max-width: 599px) {
+  .period-tabs:has(.period-tab[data-period="yesterday"]:not([hidden])) .period-tab { min-width: 0; padding: 7px 11px 6px; font-size: 0.86rem; letter-spacing: 0.06em; }
+  .leaders:has(.leader-tab[data-period="yesterday"][aria-selected="true"]) .leader-dot.is-active { background: #8ff0c8; box-shadow: 0 0 8px rgba(60, 210, 150, 0.7); }
+}
 @media (max-width: 599px) {
   .leader-tab strong { font-size: 0.86rem; letter-spacing: 0.04em; }
   .leaders:has(.leader-tab[data-period="month"][aria-selected="true"]) .leader-dot.is-active { background: #ff9ecb; box-shadow: 0 0 8px rgba(255, 110, 180, 0.7); }
