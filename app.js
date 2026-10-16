@@ -206,6 +206,7 @@ function normalize(raw) {
     drillLeaders: normalizeOverall(raw.drillLeaders, "setCount"),
     periods: normalizePeriods(raw.periods), // [V10] DAILY/WEEKLY/MONTHLY 요약 (옛 API면 null → 오늘 값 그대로)
     yesterdayDetails: normalizeDetails(raw.yesterdayDetails), // [V11] 어제 상세 목록 (과제 확인용). 옛 API면 null
+    mock: normalizeMock(raw.mock), // [V13] 오늘 MOCK(모의고사) 완료 목록 — 없으면 null (옛 API): 섹션은 숨김
   };
 }
 
@@ -280,6 +281,15 @@ function normalizeDetails(raw) {
         .filter((s) => s.student)
       : null,
   };
+}
+
+/** [V13] MOCK 완료 목록 (오늘, 최신순) — 허용된 필드만: 시간 / 마스킹 이름 / 지문 번호·제목 / 도전 횟수.
+    점수·틀린 문제는 API도 보내지 않고 여기서도 쓰지 않음. 옛 API(mock 없음)·오류면 null */
+function normalizeMock(raw) {
+  if (!raw || raw.status !== "ok" || !raw.details || !Array.isArray(raw.details.today)) return null;
+  return raw.details.today
+    .map((p) => ({ time: formatPassTime(p && p.time), student: maskName(p && p.student), course: cleanText(p && p.passageNo), unit: cleanText(p && p.title), rounds: toCount(p && p.rounds) || 1 }))
+    .filter((p) => p.student);
 }
 
 /** [LEADERS] API leaders → 화면용 (허용된 필드만: 단어장명 / 순위 / 단원 수 / 마스킹 이름)
@@ -490,8 +500,9 @@ function buildFeedRow(p) {
   course.textContent = `${p.course} ${p.unit}`.trim();
   const pass = document.createElement("span");
   const isDrill = p._type === "drill"; // [V10] DRILL 완료 / TEST PASS 배지
-  pass.className = `fr-pass pass-chip ${isDrill ? "is-drill" : "is-pass"}`;
-  pass.textContent = isDrill ? "DRILL" : "PASS";
+  const isMock = p._type === "mock"; // [V13] MOCK 완료 배지
+  pass.className = `fr-pass pass-chip ${isMock ? "is-mock" : isDrill ? "is-drill" : "is-pass"}`;
+  pass.textContent = isMock ? "MOCK" : isDrill ? "DRILL" : "PASS";
 
   li.append(makeAvatar(p), time, name, course, pass);
   return li;
@@ -512,6 +523,21 @@ function buildDrillCard(p) {
   return li;
 }
 
+/* ---------- [V13] JUST COMPLETED MOCK 카드 ---------- */
+const mockItemKey = (p) => `M|${p.time}|${p.student}|${p.course}`;
+function buildMockCard(p) {
+  const li = document.createElement("li");
+  li.className = "jd-card jd-card--mock";
+  li.innerHTML = '<div class="jd-top"><div class="jd-meta"><p class="jd-time"></p><p class="jd-name"></p></div></div><p class="jd-course"></p><p class="jd-foot"><span class="jd-done">MOCK 완료</span><span class="jd-set"></span></p>';
+  li.querySelector(".jd-top").prepend(makeAvatar(p));
+  li.querySelector(".jd-time").textContent = p.time;
+  li.querySelector(".jd-name").textContent = p.student;
+  li.querySelector(".jd-course").textContent = `${p.course} ${p.unit}`.trim();
+  li.querySelector(".jd-set").textContent = p.rounds > 1 ? `${p.rounds}번째 도전` : "한 번에!";
+  li.setAttribute("aria-label", `${p.time} ${p.student} ${p.course} ${p.unit} MOCK 완료`);
+  return li;
+}
+
 function renderLists(data) {
   const animateNew = !state.firstRender;
 
@@ -523,10 +549,16 @@ function renderLists(data) {
   syncList($("#drillCards"), drills.slice(0, DRILL_CARD_COUNT), buildDrillCard, { animateNew });
   $("#drillEmpty").hidden = drills.length > 0;
 
+  // [V13] JUST COMPLETED MOCK (API mock.details.today, 최신순). 옛 API(mock 없음)면 섹션 자체를 숨김 → 기존 화면과 동일
+  const mocks = (data.mock || []).map((p) => ({ ...p, _type: "mock", _key: mockItemKey(p) }));
+  $("#mockPanel").hidden = data.mock == null;
+  syncList($("#mockCards"), mocks.slice(0, DRILL_CARD_COUNT), buildMockCard, { animateNew });
+  $("#mockEmpty").hidden = mocks.length > 0;
+
   // FEED: DRILL 완료 + TEST PASS를 시간순으로 (PC에서는 latest 포함 / 모바일에서는 CSS로 latest 줄 숨김)
   const feedItems = [];
   if (data.latestPass) feedItems.push({ ...data.latestPass, _latest: true });
-  feedItems.push(...data.recentPasses, ...drills);
+  feedItems.push(...data.recentPasses, ...drills, ...mocks);
   feedItems.sort((a, b) => (toMinutes(b.time) ?? -1) - (toMinutes(a.time) ?? -1)); // 같은 시각이면 기존 순서 유지
   syncList($("#feedList"), feedItems.slice(0, FEED_MAX), buildFeedRow, { animateNew });
 
@@ -553,6 +585,7 @@ function renderTicker(data) {
   if (t.learners != null) items.push({ text: `${t.learners} LEARNERS` });
   const drills = data.details && data.details.drills ? data.details.drills.slice(0, 3) : [];
   for (const p of drills) items.push({ type: "drill", text: p.student });
+  for (const p of (data.mock || []).slice(0, 3)) items.push({ type: "mock", text: p.student }); // [V13] MOCK 완료 학생도 티커에
   const passes = [data.latestPass, ...data.recentPasses].filter(Boolean).slice(0, 6);
   for (const p of passes) items.push({ type: "pass", text: p.student });
   items.push({ type: "brand", text: "Small Steps, Big Changes." });
@@ -579,10 +612,10 @@ function renderTicker(data) {
       if (it.type === "live") {
         span.classList.add("tk-live");
         span.append(document.createElement("i"), it.text);
-      } else if (it.type === "pass" || it.type === "drill") {
-        span.classList.add(it.type === "drill" ? "tk-drill" : "tk-pass");
+      } else if (it.type === "pass" || it.type === "drill" || it.type === "mock") {
+        span.classList.add(it.type === "drill" ? "tk-drill" : it.type === "mock" ? "tk-mock" : "tk-pass");
         const b = document.createElement("b");
-        b.textContent = it.type === "drill" ? "DRILL 완료" : "100% PASS";
+        b.textContent = it.type === "drill" ? "DRILL 완료" : it.type === "mock" ? "MOCK 완료" : "100% PASS";
         span.append(`${it.text} `, b);
       } else {
         if (it.type === "brand") span.classList.add("tk-brand");

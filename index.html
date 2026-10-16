@@ -21,7 +21,7 @@
   <link rel="preload" as="image" href="assets/gorae-whale.webp" />
 
   <!-- ?v= : 배포할 때마다 값을 바꾸면 브라우저 캐시와 섞이지 않고 CSS/JS가 함께 새로 로드됨 -->
-  <link rel="stylesheet" href="style.css?v=20260928-drilldone12" />
+  <link rel="stylesheet" href="style.css?v=20261016-mock13" />
 </head>
 <body>
 
@@ -158,6 +158,17 @@
       </header>
       <ol class="jd-list" id="drillCards" aria-label="최근 DRILL 완료"></ol>
       <p class="jd-empty" id="drillEmpty" hidden>오늘의 첫 DRILL을 기다리고 있어요</p>
+    </section>
+
+    <!-- ②-2 JUST COMPLETED MOCK: API mock.details.today (확인 퀴즈를 틀린 문제까지 다시 풀어 전부 맞힌 지문, 최신순). 옛 API면 숨김 -->
+    <section class="panel jd jd--mock" id="mockPanel" aria-labelledby="jmTitle" hidden>
+      <header class="panel-head">
+        <svg class="head-icon mock-ic" aria-hidden="true"><use href="#i-book" /></svg>
+        <h2 id="jmTitle">JUST COMPLETED MOCK</h2>
+        <p class="head-sub">방금, 모의고사 한 지문을 끝냈어요!</p>
+      </header>
+      <ol class="jd-list" id="mockCards" aria-label="최근 모의고사 완료"></ol>
+      <p class="jd-empty" id="mockEmpty" hidden>오늘의 첫 모의고사 완료를 기다리고 있어요</p>
     </section>
 
     <!-- ========================= BOARD ========================= -->
@@ -337,6 +348,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=20261016-performance"></script>
+  <script src="app.js?v=20261016-mock13"></script>
 </body>
 </html>
