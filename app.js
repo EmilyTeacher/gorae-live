@@ -26,7 +26,7 @@ const API_URL = "https://script.google.com/macros/s/AKfycbyhLRF23aate1nbzRfIhou2
 // true: 고정 demoData로 디자인 확인 / false: API_URL에서 실제 데이터 사용
 const DEMO_MODE = false;
 
-const REFRESH_INTERVAL_MS = 10000; // 자동 갱신 간격 (15초)
+const REFRESH_INTERVAL_MS = 60000; // 자동 갱신 간격 (15초)
 const FETCH_TIMEOUT_MS = 10000;    // 응답이 이보다 늦으면 실패로 처리
 const FEED_MAX = 10;               // LIVE FEED에 표시할 최대 줄 수 (latest 포함, 최신순)
 const FEED_MOBILE_COLLAPSED = 5;   // 모바일 LIVE FEED 기본 표시 개수 (MORE로 최대 FEED_MAX)
@@ -1128,6 +1128,7 @@ async function fetchLiveData() {
 }
 
 async function refresh() {
+  if (document.hidden) return;
   if (DEMO_MODE) {
     applyData(normalize(demoData));
     setStatus("demo");
@@ -1155,6 +1156,7 @@ async function refresh() {
 
 function scheduleNext() {
   clearTimeout(state.timer);
+  if (document.hidden) return;
   state.timer = setTimeout(async () => {
     await refresh();
     scheduleNext();
@@ -1219,9 +1221,9 @@ init();
    - 이름은 API에서 이미 마스킹됨 → 그대로 표시만. current_area는 대문자로만 바꿔 표시
    ===================================================================== */
 const NOW_LEARNING_URL = "https://gorae-learning-app-builder.ezzang.chatgpt.site/api/now-learning";
-const NOW_REFRESH_MS = 30000;       // 30초마다 다시 조회 (탭이 숨겨지면 멈춤)
+const NOW_REFRESH_MS = 60000;       // 30초마다 다시 조회 (탭이 숨겨지면 멈춤)
 const NOW_STALE_MS = 3 * 60 * 1000; // 이보다 오래 못 받아오면 지난 목록을 숨김
-const nowState = { timer: 0, lastOkAt: 0, key: null, inFlight: false, resizeTimer: 0 };
+const nowState = { timer: 0, lastOkAt: 0, key: null, inFlight: false, resizeTimer: 0, version: null };
 
 function nowAreaLabel(area) { // 뜻은 그대로, 짧게만: Vocabulary DRILL → DRILL, Vocabulary TEST → TEST
   const a = area.toLowerCase();
@@ -1297,20 +1299,24 @@ window.addEventListener("resize", () => {
 });
 
 async function refreshNowLearning() {
-  if (nowState.inFlight) return;
+  if (document.hidden || nowState.inFlight) return;
   nowState.inFlight = true;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    const res = await fetch(NOW_LEARNING_URL, { cache: "no-store", signal: controller.signal });
+    const url = NOW_LEARNING_URL + (nowState.version ? "?since=" + encodeURIComponent(nowState.version) : "");
+    const res = await fetch(url, { cache: "no-store", signal: controller.signal });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    renderNowLearning(await res.json());
+    const data = await res.json();
+    if (!data.unchanged) renderNowLearning(data);
+    if (data.version) nowState.version = data.version;
     nowState.lastOkAt = Date.now();
   } catch (err) {
     console.warn("[GORAE LIVE] NOW LEARNING 갱신 실패:", err);
     if (Date.now() - nowState.lastOkAt > NOW_STALE_MS) {
       $("#nowLearning").hidden = true;
       nowState.key = null;
+      nowState.version = null;
     }
   } finally {
     clearTimeout(timeout);
@@ -1320,6 +1326,7 @@ async function refreshNowLearning() {
 
 function scheduleNowLearning() {
   clearTimeout(nowState.timer);
+  if (document.hidden) return;
   nowState.timer = setTimeout(async () => {
     await refreshNowLearning();
     scheduleNowLearning();
