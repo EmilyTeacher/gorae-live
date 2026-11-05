@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+globalThis.document={querySelector:()=>null};
+const {rankRecords,sanitizeRecord}=await import('./history.js');
+const base={id:'row',learner:'real-identity-A',unique:'unit-A',student:'김가현',area:'phonics',activity:'단어 TEST',at:'2026-10-01T14:59:00Z',course:'파닉스',unit:'Unit 1'};
+assert.equal(sanitizeRecord(base).student,'김○현');assert.equal(sanitizeRecord({...base,at:'invalid'}),null);assert.equal(sanitizeRecord({...base,area:'private'}),null);
+const a=sanitizeRecord(base),b=sanitizeRecord({...base,id:'other',learner:'real-identity-B'});
+assert.equal(rankRecords([a,a,b]).length,2);assert(rankRecords([a,a,b]).every(r=>r.rank===1&&r.count===1));
+const drill={...a,activity:'단어 DRILL'};assert.equal(rankRecords([drill,{...drill,at:'2026-10-01T15:00:00Z'}])[0].count,2);
+assert.equal(rankRecords([drill,{...drill,at:'2026-10-01T14:59:59Z'}])[0].count,1);
+console.log('history: masked names, identity collisions, duplicate passes, shared ranks and KST day rollover passed');
