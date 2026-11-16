@@ -34,8 +34,12 @@ function render(){
  $('#historyRankings').replaceChildren(...activities.map(activity=>{
   const panel=el('article','ha-ranking');panel.dataset.tone=activity.includes('DRILL')?'violet':activity.includes('문법')?'gold':activity.includes('퀴즈')?'cyan':'blue';panel.append(el('h4','',activity));
   const list=el('ol');const rows=rankRecords(records.filter(r=>r.activity===activity));
-  for(const rank of [1,2,3]){
-   const tied=rows.filter(r=>r.rank===rank);if(!tied.length)continue;
+  const ranks=new Map();
+  for(const row of rows){
+   if(!ranks.has(row.rank))ranks.set(row.rank,[]);
+   ranks.get(row.rank).push(row);
+  }
+  for(const [rank,tied] of ranks){
    const li=el('li','ha-rank-row ha-rank-'+rank);li.append(el('span','ha-place',String(rank).padStart(2,'0')));
    const names=el('div','ha-names');
    for(const row of tied){const button=el('button','ha-name-button',row.student);button.type='button';button.setAttribute('aria-label',`${row.rank}위 ${row.student} ${row.count}개 학습 기록 보기`);button.addEventListener('click',()=>{state.learner=row.learner;state.activity=activity;$('#historyActivity').value=activity;state.view='records';state.limit=20;render()});names.append(button)}
