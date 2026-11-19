@@ -21,7 +21,7 @@
   <link rel="preload" as="image" href="assets/gorae-whale.webp" />
 
   <!-- ?v= : 배포할 때마다 값을 바꾸면 브라우저 캐시와 섞이지 않고 CSS/JS가 함께 새로 로드됨 -->
-  <link rel="stylesheet" href="style.css?v=20261016-mock13" />
+  <link rel="stylesheet" href="style.css?v=20261120-school14" />
   <link rel="stylesheet" href="history.css?v=20261105-galaxy2" />
 </head>
 <body>
@@ -174,6 +174,17 @@
       </header>
       <ol class="jd-list" id="mockCards" aria-label="최근 모의고사 완료"></ol>
       <p class="jd-empty" id="mockEmpty" hidden>오늘의 첫 모의고사 완료를 기다리고 있어요</p>
+    </section>
+
+    <!-- ②-3 JUST COMPLETED SCHOOL: API school.recent (학교 시험 대비 단계 완료, 최신순). 옛 API면 숨김 -->
+    <section class="panel jd jd--school" id="schoolPanel" aria-labelledby="jsTitle" hidden>
+      <header class="panel-head">
+        <svg class="head-icon school-ic" aria-hidden="true"><use href="#i-star" /></svg>
+        <h2 id="jsTitle">JUST COMPLETED SCHOOL</h2>
+        <p class="head-sub">방금, 학교 시험 대비 한 단계를 끝냈어요!</p>
+      </header>
+      <ol class="jd-list" id="schoolCards" aria-label="최근 학교 시험 대비 완료"></ol>
+      <p class="jd-empty" id="schoolEmpty" hidden>오늘의 첫 학교 시험 대비 완료를 기다리고 있어요</p>
     </section>
 
     <!-- ========================= BOARD ========================= -->
@@ -364,7 +375,7 @@
     </div>
   </div>
 
-  <script src="app.js?v=20261016-mock13"></script>
+  <script src="app.js?v=20261120-school14"></script>
   <script type="module" src="history.js?v=20261116-all-ranks"></script>
 </body>
 </html>

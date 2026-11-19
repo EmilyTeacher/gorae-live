@@ -1981,3 +1981,13 @@ html.dm-open { overflow: hidden; }
   .now-dot, .now-pip { animation: none; }
   .now-viewport { overflow-x: auto; }
 }
+
+/* ---------- [V14] JUST COMPLETED SCHOOL (green) — MOCK 카드와 같은 구조, 색만 다름 ---------- */
+.jd--school { --school: 95 227 161; border-color: rgb(var(--school) / 0.4); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 0 26px rgb(var(--school) / 0.12); }
+.jd--school[hidden] { display: none; }
+.head-icon.school-ic { color: rgb(95 227 161); filter: drop-shadow(0 0 6px rgb(95 227 161 / 0.7)); }
+.jd-card--school { --school: 95 227 161; border-color: rgb(var(--school) / 0.45); background: linear-gradient(165deg, rgb(var(--school) / 0.16), rgba(8, 16, 40, 0.88) 70%); box-shadow: inset 0 0 18px rgb(var(--school) / 0.08); }
+.jd-card--school .jd-done { border-color: rgb(var(--school) / 0.9); color: #e2fff0; box-shadow: 0 0 10px rgb(var(--school) / 0.35), inset 0 0 8px rgb(var(--school) / 0.2); }
+.tk-school { color: #fff; }
+.tk-school b { font-weight: 600; color: #9af0c4; }
+.pass-chip.is-school { border-color: rgb(95 227 161 / 0.9); background: rgb(95 227 161 / 0.16); color: #e2fff0; box-shadow: 0 0 10px rgb(95 227 161 / 0.35); }

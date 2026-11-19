@@ -206,6 +206,7 @@ function normalize(raw) {
     drillLeaders: normalizeOverall(raw.drillLeaders, "setCount"),
     periods: normalizePeriods(raw.periods), // [V10] DAILY/WEEKLY/MONTHLY 요약 (옛 API면 null → 오늘 값 그대로)
     yesterdayDetails: normalizeDetails(raw.yesterdayDetails), // [V11] 어제 상세 목록 (과제 확인용). 옛 API면 null
+    school: normalizeSchool(raw.school), // [V14] 학교 시험 대비 단계 완료 — 없으면 null (옛 API): 섹션은 숨김
     mock: normalizeMock(raw.mock), // [V13] 오늘 MOCK(모의고사) 완료 목록 — 없으면 null (옛 API): 섹션은 숨김
   };
 }
@@ -281,6 +282,29 @@ function normalizeDetails(raw) {
         .filter((s) => s.student)
       : null,
   };
+}
+
+/** [V14] 학교 시험 대비 "단계 완료" 최근 목록 — 허용된 필드만: 시간 / 마스킹 이름 / 시험·단원 / 단계. 점수·별은 API도 보내지 않음.
+    같은 학생이 같은 단계를 거듭 끝낸 기록은 한 줄로 묶음. 옛 API(school 없음)·오류면 null */
+const SCHOOL_STAGE = { learn: "배우기", drill: "반복 연습", practice: "연습문제" };
+function schoolExam(code) {
+  const m = /^hansol-([0-9])-([0-9])$/.exec(String(code || ""));
+  return m ? `한솔초 ${m[1]}-${m[2]}` : cleanText(code);
+}
+function normalizeSchool(raw) {
+  if (!raw || raw.status !== "ok" || !Array.isArray(raw.recent)) return null;
+  const seen = new Set();
+  const out = [];
+  for (const p of raw.recent) {
+    const student = maskName(p && p.student);
+    if (!student) continue;
+    const stage = SCHOOL_STAGE[p.stage] || "학습";
+    const key = [student, p.exam, p.lesson, p.stage, p.round].join("|");
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ time: formatPassTime(p.time), student, course: schoolExam(p.exam), unit: `${toCount(p.lesson)}과 ${stage}`, rounds: 1 });
+  }
+  return out;
 }
 
 /** [V13] MOCK 완료 목록 (오늘, 최신순) — 허용된 필드만: 시간 / 마스킹 이름 / 지문 번호·제목 / 도전 횟수.
@@ -501,8 +525,9 @@ function buildFeedRow(p) {
   const pass = document.createElement("span");
   const isDrill = p._type === "drill"; // [V10] DRILL 완료 / TEST PASS 배지
   const isMock = p._type === "mock"; // [V13] MOCK 완료 배지
-  pass.className = `fr-pass pass-chip ${isMock ? "is-mock" : isDrill ? "is-drill" : "is-pass"}`;
-  pass.textContent = isMock ? "MOCK" : isDrill ? "DRILL" : "PASS";
+  const isSchool = p._type === "school"; // [V14] 학교 시험 대비 단계 완료 배지
+  pass.className = `fr-pass pass-chip ${isSchool ? "is-school" : isMock ? "is-mock" : isDrill ? "is-drill" : "is-pass"}`;
+  pass.textContent = isSchool ? "SCHOOL" : isMock ? "MOCK" : isDrill ? "DRILL" : "PASS";
 
   li.append(makeAvatar(p), time, name, course, pass);
   return li;
@@ -520,6 +545,20 @@ function buildDrillCard(p) {
   li.querySelector(".jd-course").textContent = `${p.course} ${p.unit}`.trim();
   li.querySelector(".jd-set").textContent = p.setLabel && p.setLabel !== "SET" ? p.setLabel : "";
   li.setAttribute("aria-label", `${p.time} ${p.student} ${p.course} ${p.unit} DRILL 완료`);
+  return li;
+}
+
+/* ---------- [V14] JUST COMPLETED SCHOOL 카드 ---------- */
+const schoolItemKey = (p) => `S|${p.time}|${p.student}|${p.course}|${p.unit}`;
+function buildSchoolCard(p) {
+  const li = document.createElement("li");
+  li.className = "jd-card jd-card--school";
+  li.innerHTML = '<div class="jd-top"><div class="jd-meta"><p class="jd-time"></p><p class="jd-name"></p></div></div><p class="jd-course"></p><p class="jd-foot"><span class="jd-done">단계 완료</span></p>';
+  li.querySelector(".jd-top").prepend(makeAvatar(p));
+  li.querySelector(".jd-time").textContent = p.time;
+  li.querySelector(".jd-name").textContent = p.student;
+  li.querySelector(".jd-course").textContent = `${p.course} ${p.unit}`.trim();
+  li.setAttribute("aria-label", `${p.time} ${p.student} ${p.course} ${p.unit} 완료`);
   return li;
 }
 
@@ -555,10 +594,16 @@ function renderLists(data) {
   syncList($("#mockCards"), mocks.slice(0, DRILL_CARD_COUNT), buildMockCard, { animateNew });
   $("#mockEmpty").hidden = mocks.length > 0;
 
+  // [V14] JUST COMPLETED SCHOOL (API school.recent, 최신순). 옛 API(school 없음)면 섹션 자체를 숨김
+  const schools = (data.school || []).map((p) => ({ ...p, _type: "school", _key: schoolItemKey(p) }));
+  $("#schoolPanel").hidden = data.school == null;
+  syncList($("#schoolCards"), schools.slice(0, DRILL_CARD_COUNT), buildSchoolCard, { animateNew });
+  $("#schoolEmpty").hidden = schools.length > 0;
+
   // FEED: DRILL 완료 + TEST PASS를 시간순으로 (PC에서는 latest 포함 / 모바일에서는 CSS로 latest 줄 숨김)
   const feedItems = [];
   if (data.latestPass) feedItems.push({ ...data.latestPass, _latest: true });
-  feedItems.push(...data.recentPasses, ...drills, ...mocks);
+  feedItems.push(...data.recentPasses, ...drills, ...mocks, ...schools);
   feedItems.sort((a, b) => (toMinutes(b.time) ?? -1) - (toMinutes(a.time) ?? -1)); // 같은 시각이면 기존 순서 유지
   syncList($("#feedList"), feedItems.slice(0, FEED_MAX), buildFeedRow, { animateNew });
 
@@ -585,7 +630,8 @@ function renderTicker(data) {
   if (t.learners != null) items.push({ text: `${t.learners} LEARNERS` });
   const drills = data.details && data.details.drills ? data.details.drills.slice(0, 3) : [];
   for (const p of drills) items.push({ type: "drill", text: p.student });
-  for (const p of (data.mock || []).slice(0, 3)) items.push({ type: "mock", text: p.student }); // [V13] MOCK 완료 학생도 티커에
+  for (const p of (data.mock || []).slice(0, 3)) items.push({ type: "mock", text: p.student });
+  for (const p of (data.school || []).slice(0, 3)) items.push({ type: "school", text: p.student }); // [V14] // [V13] MOCK 완료 학생도 티커에
   const passes = [data.latestPass, ...data.recentPasses].filter(Boolean).slice(0, 6);
   for (const p of passes) items.push({ type: "pass", text: p.student });
   items.push({ type: "brand", text: "Small Steps, Big Changes." });
@@ -612,10 +658,10 @@ function renderTicker(data) {
       if (it.type === "live") {
         span.classList.add("tk-live");
         span.append(document.createElement("i"), it.text);
-      } else if (it.type === "pass" || it.type === "drill" || it.type === "mock") {
-        span.classList.add(it.type === "drill" ? "tk-drill" : it.type === "mock" ? "tk-mock" : "tk-pass");
+      } else if (it.type === "pass" || it.type === "drill" || it.type === "mock" || it.type === "school") {
+        span.classList.add(it.type === "drill" ? "tk-drill" : it.type === "mock" ? "tk-mock" : it.type === "school" ? "tk-school" : "tk-pass");
         const b = document.createElement("b");
-        b.textContent = it.type === "drill" ? "DRILL 완료" : it.type === "mock" ? "MOCK 완료" : "100% PASS";
+        b.textContent = it.type === "drill" ? "DRILL 완료" : it.type === "mock" ? "MOCK 완료" : it.type === "school" ? "학교시험 완료" : "100% PASS";
         span.append(`${it.text} `, b);
       } else {
         if (it.type === "brand") span.classList.add("tk-brand");
